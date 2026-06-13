@@ -451,15 +451,16 @@ function renderTopAuth() {
 
 function renderPagePanel() {
   const titles = getTitles();
+  const showBackRow = selectedTab !== "home";
   return `
     <section class="page-panel">
-      <div class="panel-row">
+      ${showBackRow ? `<div class="panel-row">
         <div class="panel-center">
           <button class="back-button" data-action="back">${t("back")}</button>
           <span class="panel-dot">·</span>
           <div class="mini-title">${titles.small}</div>
         </div>
-      </div>
+      </div>` : ""}
       <h1 class="big-title">${titles.big}</h1>
     </section>
   `;
