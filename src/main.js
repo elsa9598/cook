@@ -1996,8 +1996,10 @@ function openCarousel(mode) {
 
 // 냉장고 털기: up to 10 dishes from the user's actual fridge/freezer items.
 function buildClearoutOptions(count) {
+  // Skip already-made side dishes (김치/반찬) — they aren't cooking ingredients.
+  const isSideDish = (e) => { const c = e.category || ""; return c.includes("김치") || c.includes("반찬"); };
   const perishable = [...state.inventory.fridge, ...state.inventory.freezer]
-    .filter((x) => Number(x.amount) > 0)
+    .filter((x) => Number(x.amount) > 0 && !isSideDish(x))
     .slice()
     .sort((a, b) => clearoutPriority(a) - clearoutPriority(b));
   if (!perishable.length) return [];
