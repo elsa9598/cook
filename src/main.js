@@ -1910,14 +1910,21 @@ let clearoutCursor = 0;
 const CLEAROUT_PRIORITY = {
   잎채소: 1, 버섯: 1, 해산물: 1,
   채소: 2, 과일: 2, 육류: 2,
+  // Frozen raw ingredients are real cooking ingredients — use them too (just
+  // after fresh). Processed frozen meals / ice cream stay excluded below.
+  냉동해산물: 2, 냉동채소: 3, 냉동육류: 3, 냉동과일: 4, "냉동밥/곡물": 4,
+  냉동간편식: 4, 냉동세계요리: 5,
   "콩/두부": 3, 유제품: 3,
   달걀: 4, 음료: 4,
   "김치/반찬": 5,
 };
+// Only sweets/bakery are skipped — prepared frozen foods (전·만두 등) still get
+// used since they also have expiry dates. (Side dishes 김치/반찬 are skipped too.)
+const CLEAROUT_SKIP = ["냉동베이커리", "아이스크림"];
 function clearoutPriority(entry) {
   const cat = entry.category || "";
   if (CLEAROUT_PRIORITY[cat] != null) return CLEAROUT_PRIORITY[cat];
-  if (cat.startsWith("냉동") || cat === "아이스크림") return 6; // frozen keeps longest
+  if (cat.startsWith("냉동") || cat === "아이스크림") return 6; // other frozen, lowest
   return 3;
 }
 
@@ -1996,10 +2003,11 @@ function openCarousel(mode) {
 
 // 냉장고 털기: up to 10 dishes from the user's actual fridge/freezer items.
 function buildClearoutOptions(count) {
-  // Skip already-made side dishes (김치/반찬) — they aren't cooking ingredients.
-  const isSideDish = (e) => { const c = e.category || ""; return c.includes("김치") || c.includes("반찬"); };
+  // Skip finished side dishes (김치/반찬) and processed frozen meals/desserts —
+  // they aren't raw cooking ingredients. Raw frozen veg/meat/seafood are kept.
+  const skip = (e) => { const c = e.category || ""; return c.includes("김치") || c.includes("반찬") || CLEAROUT_SKIP.includes(c); };
   const perishable = [...state.inventory.fridge, ...state.inventory.freezer]
-    .filter((x) => Number(x.amount) > 0 && !isSideDish(x))
+    .filter((x) => Number(x.amount) > 0 && !skip(x))
     .slice()
     .sort((a, b) => clearoutPriority(a) - clearoutPriority(b));
   if (!perishable.length) return [];
