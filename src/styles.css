@@ -776,6 +776,10 @@ button {
   grid-template-columns: repeat(2, 1fr);
 }
 
+.detail-actions.one {
+  grid-template-columns: 1fr;
+}
+
 .detail-actions .tiny-button {
   text-align: center;
 }

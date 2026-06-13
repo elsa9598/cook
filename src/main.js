@@ -759,6 +759,7 @@ function ensureStaples() {
     if (existing) {
       existing.staple = true;
       if (!existing.category) existing.category = "기본양념";
+      if (!Number(existing.amount)) { existing.amount = amount; existing.unit = existing.unit || unit; }
     } else {
       state.inventory.sauce.push({ ...item(name, amount, unit, "기본양념", "", null, emojiFor(name, "sauce")), staple: true });
     }
@@ -1417,8 +1418,8 @@ function renderDetailModal(type, id) {
           <p>${memo ? escapeHtml(memo).replaceAll("\n", "<br>") : t("noMemo")}</p>
         </div>
         <button class="ghost-pill detail-search" data-web-search="${type}:${id}">🔎 ${t("searchWeb")}</button>
-        <div class="detail-actions ${entry.staple ? "two" : ""}">
-          <button class="tiny-button" data-use="${type}:${id}">${t("use")}</button>
+        <div class="detail-actions ${entry.staple ? "one" : ""}">
+          ${entry.staple ? "" : `<button class="tiny-button" data-use="${type}:${id}">${t("use")}</button>`}
           <button class="tiny-button" data-edit="${type}:${id}">${t("edit")}</button>
           ${entry.staple ? "" : `<button class="tiny-button delete-button" data-delete="${type}:${id}">${t("delete")}</button>`}
         </div>
@@ -1913,6 +1914,7 @@ function handleEditItem(event) {
 function useInventory(encoded) {
   const [type, id] = encoded.split(":");
   const entry = state.inventory[type].find((x) => x.id === id);
+  if (entry && entry.staple) return; // fixed basic seasonings keep their amount
   if (entry) {
     entry.amount = Math.max(0, Number(entry.amount) - 1);
     saveState();
