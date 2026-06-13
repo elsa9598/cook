@@ -2185,7 +2185,7 @@ function buildFoodPrompt(title, ingredients, measuredIngredients, modeText, visu
   const referenceLine = reference
     ? `Free recipe reference: ${reference.name}, ${reference.area || "home cooking"} style, with cues from ${reference.ingredients.join(", ")}.`
     : "No external recipe reference was available; use realistic beginner home-cooking presentation.";
-  return `Create a mouthwatering vertical smartphone food photo for "${title}". Style: ${modeText}. Main ingredients from the user's kitchen: ${list}. Exact recipe measurements: ${measures}. ${referenceLine} Visual direction: ${visualDescription} The image must match this recipe, not a different dish. Plate the food on a warm ceramic dish, show glossy textures, gentle steam, fresh garnish, appetizing color contrast, realistic home kitchen lighting, shallow depth of field, high detail, no text, no watermark, no hands, no packaging.`;
+  return `Create a mouthwatering square 1:1 food photo for "${title}". Style: ${modeText}. Main ingredients from the user's kitchen: ${list}. Exact recipe measurements: ${measures}. ${referenceLine} Visual direction: ${visualDescription} The image must match this recipe, not a different dish. Plate the food on a warm ceramic dish, show glossy textures, gentle steam, fresh garnish, appetizing color contrast, realistic home kitchen lighting, shallow depth of field, high detail, no text, no watermark, no hands, no packaging. Generate in 1:1 square aspect ratio (1:1 비율로 생성).`;
 }
 
 function describeSeasoning(name) {
