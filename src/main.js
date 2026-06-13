@@ -51,12 +51,15 @@ const ko = {
   steps: "요리 순서",
   copyPrompt: "최종 이미지 영어 프롬프트 복사",
   copied: "복사 완료",
-  authTitle: "요리로 신규 가입",
+  authTitle: "요리젬뱅이 신규 가입",
   authCopy: "무료 가입에는 개인 정보로 이메일만 저장해요. 비밀번호는 화면 확인용이며 앱에 저장하지 않습니다.",
   closeToday: "오늘 닫기",
   lockedTitle: "4일째부터는 가입 후 사용 가능",
   lockedCopy: "홈 화면은 볼 수 있지만 보관함, 요리 추천, 상세 기능은 무료 가입 후 열려요.",
-  cloudflareNote: "Cloudflare Pages 유저 생성 연동 준비 화면",
+  cloudflareNote: "",
+  celebrateTitle: "가입 축하해요!",
+  celebrateCopy: "이제 보관함, 요리 추천, 최종 이미지 프롬프트까지 모두 사용할 수 있어요.",
+  startPremium: "프리미엄 시작",
   searchWeb: "무료 웹 검색",
   joinedCopy: "가입 완료. 모든 기능 사용 가능",
   savedCount: "개 저장",
@@ -151,7 +154,10 @@ const en = {
   closeToday: "Close today",
   lockedTitle: "Sign-up required from day 4",
   lockedCopy: "Home remains visible, but storage, recipe, and detail features open after free sign-up.",
-  cloudflareNote: "Cloudflare Pages user creation hook screen",
+  cloudflareNote: "",
+  celebrateTitle: "Welcome aboard!",
+  celebrateCopy: "Storage, recipe recommendations, and final image prompts are now unlocked.",
+  startPremium: "Start Premium",
   searchWeb: "Free web search",
   joinedCopy: "Joined. All features are available.",
   savedCount: "saved",
@@ -605,7 +611,7 @@ function renderHome() {
         <strong>${state.user ? "Premium" : locked ? t("signupRequired") : `${t("trial")} ${trialDay()}/3`}</strong>
         <span>${state.user ? t("joinedCopy") : t("trialCopy")}</span>
       </div>
-      <button class="pill" data-action="${state.user ? "noop" : "signup"}">${state.user ? "OK" : t("joinNow")}</button>
+      ${state.user ? "" : `<button class="pill" data-action="signup">${t("joinNow")}</button>`}
     </section>
     ${locked ? renderGate() : ""}
     <section class="section">
@@ -847,6 +853,7 @@ function bottomTab(key, emoji, label) {
 
 function renderModal() {
   if (modal === "signup" || modal === "login") return renderAuthModal(modal);
+  if (modal === "celebrate") return renderCelebrationModal();
   if (modal?.startsWith("detail:")) return renderDetailModal(modal.split(":")[1]);
   if (modal?.startsWith("edit:")) return renderEditModal(modal.split(":")[1], modal.split(":")[2]);
   return "";
@@ -858,7 +865,6 @@ function renderAuthModal(kind) {
       <form class="modal" data-auth-form="${kind}">
         <h2>${kind === "login" ? t("login") : t("authTitle")}</h2>
         <p>${t("authCopy")}</p>
-        <p><strong>${t("cloudflareNote")}</strong></p>
         <div class="form-grid">
           <div class="field">
             <label>${t("email")}</label>
@@ -874,6 +880,25 @@ function renderAuthModal(kind) {
           <button type="submit" class="pill">${kind === "login" ? t("login") : t("joinNow")}</button>
         </div>
       </form>
+    </div>
+  `;
+}
+
+function renderCelebrationModal() {
+  return `
+    <div class="modal-backdrop celebration-backdrop">
+      <article class="modal celebration-modal">
+        <div class="confetti" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <div class="celebration-badge">★</div>
+        <h2>${t("celebrateTitle")}</h2>
+        <p>${t("celebrateCopy")}</p>
+        <div class="modal-actions">
+          <button class="pill" data-action="close-modal">${t("startPremium")}</button>
+        </div>
+      </article>
     </div>
   `;
 }
@@ -1101,8 +1126,8 @@ async function handleAuth(event) {
     provider: "cloudflare-ready-local",
   };
   saveState();
-  modal = null;
   selectedTab = "home";
+  modal = "celebrate";
   render();
 }
 
