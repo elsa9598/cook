@@ -211,7 +211,7 @@ button {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  padding: 16px 16px calc(96px + env(safe-area-inset-bottom));
+  padding: 16px 16px calc(130px + env(safe-area-inset-bottom));
 }
 
 .hero-band {
@@ -1255,7 +1255,7 @@ button {
   }
 
   .content {
-    padding: 18px 16px calc(112px + env(safe-area-inset-bottom));
+    padding: 18px 16px calc(150px + env(safe-area-inset-bottom));
   }
 
   .hero-title {
