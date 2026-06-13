@@ -1693,7 +1693,32 @@ function buildClearout(servings) {
   const mainTop = mains.slice(0, 3);
   const koTitle = `${mainTop.map((m) => m.name).join(" ")} 볶음`;
   const enTitle = `${mainTop.map((m) => ingredientTranslations[m.name] || EN_NAME[m.name] || m.name).join(" ")} stir-fry`;
-  return { measured, shopping, consume: names, koTitle, enTitle };
+
+  // Cooking steps reference the user's actual ingredients (no hardcoded 두부/대파).
+  const mainsKo = mains.map((m) => displayName(m.name)).join(", ");
+  const mainsEn = mains.map((m) => ingredientTranslations[m.name] || EN_NAME[m.name] || m.name).join(", ");
+  const seasonKo = seasonNames[0] ? displayName(seasonNames[0]) : "간장";
+  const seasonEn = seasonNames[0] ? (ingredientTranslations[seasonNames[0]] || EN_NAME[seasonNames[0]] || seasonNames[0]) : "soy sauce";
+  const measuredKo = formatMeasuredList(measured, "ko");
+  const measuredEn = formatMeasuredList(measured, "en");
+  const koSteps = [
+    `${mainsKo}를 한입 크기로 손질하고, 물기 많은 재료는 따로 둬요. 계량: ${measuredKo}.`,
+    "중불 팬에 기름을 두르고 단단한 재료부터 넣어 볶아요.",
+    `${seasonKo}으로 간을 맞추고 맛을 보며 조절해요.`,
+    "마지막에 참기름이나 후추를 살짝 넣고 따뜻할 때 담아요.",
+  ];
+  const enSteps = [
+    `Cut ${mainsEn} into bite-size pieces and set watery ones aside. Measurements: ${measuredEn}.`,
+    "Heat oil in a pan over medium and stir-fry the firmer items first.",
+    `Season with ${seasonEn} and adjust to taste.`,
+    "Finish with a little sesame oil or pepper and plate while warm.",
+  ];
+  const titlesKo = [t("stepPrepTitle"), t("stepHeatTitle"), t("stepSeasonTitle"), t("stepPlateTitle")];
+  const titlesEn = ["Measure", "Cook", "Check", "Plate"];
+  const src = state.lang === "ko" ? koSteps : enSteps;
+  const steps = src.map((text, i) => ({ title: state.lang === "ko" ? titlesKo[i] : titlesEn[i], text }));
+
+  return { measured, shopping, consume: names, koTitle, enTitle, steps };
 }
 
 async function makeRecipe() {
@@ -1771,7 +1796,7 @@ async function makeRecipe() {
       amount: state.lang === "ko" ? entry.ko : entry.en,
     })),
     shopping,
-    steps: dish ? buildVariantSteps(dish, measuredIngredients) : buildRecipeSteps(selectedCookMode, profile, measuredIngredients),
+    steps: clear ? clear.steps : dish ? buildVariantSteps(dish, measuredIngredients) : buildRecipeSteps(selectedCookMode, profile, measuredIngredients),
     visual: visualText,
     reference,
     sourceLabel,
