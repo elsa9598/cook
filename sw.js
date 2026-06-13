@@ -1,4 +1,4 @@
-const CACHE_NAME = "yorijambaengi-pwa-v2";
+const CACHE_NAME = "yorijambaengi-pwa-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -25,25 +25,45 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+// HTML/manifest use network-first so a new deploy is picked up immediately
+// (avoids serving a stale index.html that points at old hashed assets).
+// Hashed build assets are content-addressed, so cache-first is safe for them.
+function isFreshFirst(request) {
+  if (request.mode === "navigate") return true;
+  const url = new URL(request.url);
+  return url.pathname.endsWith(".html") || url.pathname.endsWith(".webmanifest");
+}
+
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+
+  if (isFreshFirst(event.request)) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          return response;
+        })
+        .catch(() =>
+          caches.match(event.request).then((cached) =>
+            cached || caches.match(event.request.mode === "navigate" ? "./offline.html" : "./")
+          )
+        )
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
-
       return fetch(event.request)
         .then((response) => {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
           return response;
         })
-        .catch(() => {
-          if (event.request.mode === "navigate") {
-            return caches.match("./offline.html");
-          }
-          return caches.match("./");
-        });
+        .catch(() => caches.match("./"));
     })
   );
 });
