@@ -1642,6 +1642,40 @@ function deleteInventory(encoded) {
   render();
 }
 
+// 냉장고 털기: build a stir-fry from the user's actual fridge/freezer items
+// (+ owned seasonings). Returns null when there are no perishables to use.
+function buildClearout(servings) {
+  const perishable = [...state.inventory.fridge, ...state.inventory.freezer].filter((x) => Number(x.amount) > 0);
+  if (!perishable.length) return null;
+  const sauces = state.inventory.sauce.filter((x) => Number(x.amount) > 0);
+  const hasSauce = (kw) => sauces.find((x) => x.name.includes(kw) || kw.includes(x.name));
+  const mains = perishable.slice(0, 4);
+
+  const seasonNames = [];
+  ["간장", "식용유", "참기름", "고추장", "굴소스", "소금", "후추", "설탕"].forEach((s) => {
+    const m = hasSauce(s);
+    if (m && seasonNames.length < 3 && !seasonNames.includes(m.name)) seasonNames.push(m.name);
+  });
+  sauces.forEach((x) => { if (seasonNames.length < 3 && !seasonNames.includes(x.name)) seasonNames.push(x.name); });
+
+  const names = [...mains.map((m) => m.name), ...seasonNames];
+  const measured = names.map((n) => {
+    const a = measureIngredient(n, "fridgeClean", servings);
+    return { name: n, enName: ingredientTranslations[n] || EN_NAME[n] || n, ko: a.ko, en: a.en };
+  });
+
+  // Clear-out shopping stays minimal: only the basic seasonings you don't have.
+  const shopping = ["간장", "식용유"].filter((s) => !hasSauce(s)).map((s) => {
+    const a = measureIngredient(s, "fridgeClean", servings);
+    return state.lang === "ko" ? `${s} ${a.ko}` : `${ingredientTranslations[s] || s} ${a.en}`;
+  });
+
+  const mainTop = mains.slice(0, 3);
+  const koTitle = `${mainTop.map((m) => m.name).join(" ")} 볶음`;
+  const enTitle = `${mainTop.map((m) => ingredientTranslations[m.name] || EN_NAME[m.name] || m.name).join(" ")} stir-fry`;
+  return { measured, shopping, consume: names, koTitle, enTitle };
+}
+
 async function makeRecipe() {
   const profile = recipeProfiles[selectedCookMode] || recipeProfiles.fridgeClean;
   const allItems = [
@@ -1656,13 +1690,21 @@ async function makeRecipe() {
   // staple you already have never gets pushed back onto the shopping list.
   const ownedNames = allItems.map((x) => x.name);
   const mode = cookModes.find(([key]) => key === selectedCookMode);
-  const dish = pickDish(selectedCookMode);
+  // 냉장고 털기 = use what the user actually has, not a fixed dish.
+  const clear = selectedCookMode === "fridgeClean" ? buildClearout(servings) : null;
+  const dish = clear ? null : pickDish(selectedCookMode);
   let measuredIngredients;
   let displayMain;
   let englishMain;
   let shopping;
   let pickedNames;
-  if (dish && dish.ing && dish.ing.length) {
+  if (clear) {
+    measuredIngredients = clear.measured;
+    displayMain = clear.measured.map((entry) => displayName(entry.name));
+    englishMain = clear.measured.map((entry) => entry.enName);
+    shopping = clear.shopping;
+    pickedNames = clear.consume;
+  } else if (dish && dish.ing && dish.ing.length) {
     // Ingredients/shopping follow the actual dish (e.g. 탕수육 → 고기·전분·소스), not the mode's generic list.
     measuredIngredients = buildDishIngredients(dish, servings);
     displayMain = measuredIngredients.map((entry) => displayName(entry.name));
@@ -1684,8 +1726,10 @@ async function makeRecipe() {
     const missingNames = (profile.required || []).filter((need) => !ownedNames.some((name) => ingredientMatchesNeed(name, need)));
     shopping = missingNames.map((name) => formatShoppingNeed(name, measuredIngredients));
   }
-  const modeName = dish ? (state.lang === "ko" ? dish.ko : dish.en) : (state.lang === "ko" ? profile.koTitle : profile.enTitle);
-  const englishModeName = dish ? dish.en : (profile.enTitle || mode?.[2] || "easy home cooking");
+  const modeName = clear
+    ? (state.lang === "ko" ? clear.koTitle : clear.enTitle)
+    : dish ? (state.lang === "ko" ? dish.ko : dish.en) : (state.lang === "ko" ? profile.koTitle : profile.enTitle);
+  const englishModeName = clear ? clear.enTitle : dish ? dish.en : (profile.enTitle || mode?.[2] || "easy home cooking");
   const title = state.lang === "ko"
     ? `${modeName} ${servings}${t("servingsSuffix")}`
     : `${modeName} for ${servings} ${t("servingsSuffix")}`;
@@ -1978,7 +2022,7 @@ function genericMeasure(name, serving) {
   if (name.includes("간장") || name.includes("소스") || name.includes("기름")) return spoons(1, serving);
   if (name.includes("소금") || name.includes("후추")) return pinches(serving);
   if (name.includes("밥")) return bowls(1, serving);
-  if (name.includes("달걀")) return pieces("egg", serving);
+  if (name.includes("달걀") || name.includes("계란")) return pieces("egg", serving);
   return { ko: `${nice(serving)}인분 사용할 만큼`, en: `enough for ${nice(serving)} serving${serving > 1 ? "s" : ""}` };
 }
 
