@@ -1642,6 +1642,21 @@ function deleteInventory(encoded) {
   render();
 }
 
+// Lower = use sooner in clear-out (spoils faster).
+const CLEAROUT_PRIORITY = {
+  잎채소: 1, 버섯: 1, 해산물: 1,
+  채소: 2, 과일: 2, 육류: 2,
+  "콩/두부": 3, 유제품: 3,
+  달걀: 4, 음료: 4,
+  "김치/반찬": 5,
+};
+function clearoutPriority(entry) {
+  const cat = entry.category || "";
+  if (CLEAROUT_PRIORITY[cat] != null) return CLEAROUT_PRIORITY[cat];
+  if (cat.startsWith("냉동") || cat === "아이스크림") return 6; // frozen keeps longest
+  return 3;
+}
+
 // 냉장고 털기: build a stir-fry from the user's actual fridge/freezer items
 // (+ owned seasonings). Returns null when there are no perishables to use.
 function buildClearout(servings) {
@@ -1649,7 +1664,12 @@ function buildClearout(servings) {
   if (!perishable.length) return null;
   const sauces = state.inventory.sauce.filter((x) => Number(x.amount) > 0);
   const hasSauce = (kw) => sauces.find((x) => x.name.includes(kw) || kw.includes(x.name));
-  const mains = perishable.slice(0, 4);
+  // Use the most perishable items first — fresh veg/greens/seafood spoil fastest,
+  // frozen and fermented foods keep, so they're lowest priority.
+  const mains = perishable
+    .slice()
+    .sort((a, b) => clearoutPriority(a) - clearoutPriority(b))
+    .slice(0, 4);
 
   const seasonNames = [];
   ["간장", "식용유", "참기름", "고추장", "굴소스", "소금", "후추", "설탕"].forEach((s) => {
