@@ -1,0 +1,46 @@
+{
+  "name": "요리잼뱅이",
+  "short_name": "요리잼뱅이",
+  "description": "요리 못하는 사람을 위한 로컬 냉장고 기반 요리 추천 앱",
+  "id": "/",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "portrait",
+  "background_color": "#f2f0eb",
+  "theme_color": "#006241",
+  "categories": ["food", "lifestyle", "utilities"],
+  "lang": "ko-KR",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "요리 시작",
+      "short_name": "요리",
+      "description": "현재 보관함 기준으로 요리 추천 열기",
+      "url": "./?shortcut=recipe",
+      "icons": [{ "src": "./icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "양념보관창고",
+      "short_name": "양념",
+      "description": "저장된 양념과 사용 팁 보기",
+      "url": "./?shortcut=sauce",
+      "icons": [{ "src": "./icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ]
+}
