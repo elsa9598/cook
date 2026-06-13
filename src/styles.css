@@ -529,6 +529,205 @@ button {
   color: #fff;
 }
 
+/* Ingredient grid — see every item at a glance as illustrated icons */
+.ingredient-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.ingredient-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: var(--white);
+  border: 2px solid transparent;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 12px 6px 10px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.ingredient-icon.low {
+  border-color: var(--danger);
+  animation: dangerBlink 1s ease-in-out infinite;
+}
+
+.icon-art {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--green-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.icon-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.icon-name {
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.2;
+  word-break: keep-all;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.icon-qty {
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--green-accent);
+}
+
+/* Name search field with live illustration preview */
+.name-row {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.name-emoji {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--green-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+/* Detail page */
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  background: var(--white);
+  color: var(--ink);
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.detail-modal {
+  position: relative;
+}
+
+.detail-head {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 14px;
+  align-items: center;
+  padding-right: 36px;
+}
+
+.detail-art {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--green-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 34px;
+}
+
+.detail-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.detail-meta {
+  margin: 4px 0 0;
+}
+
+.detail-memo {
+  margin-top: 14px;
+  background: var(--cream, #f7f3ec);
+  border-radius: var(--radius-card);
+  padding: 12px;
+}
+
+.detail-memo label {
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--soft);
+}
+
+.detail-memo p {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: normal;
+}
+
+.detail-search {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.detail-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.detail-actions .tiny-button {
+  text-align: center;
+}
+
+.detail-confirm {
+  width: 100%;
+  margin-top: 12px;
+}
+
+/* In-app web search panel */
+.websearch-modal {
+  position: relative;
+}
+
+.websearch-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.websearch-head .modal-close {
+  position: static;
+}
+
+.websearch-engines {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 6px 0 4px;
+}
+
+.websearch-engines button {
+  text-align: center;
+  padding: 10px 4px;
+}
+
 .recipe-hero {
   background: var(--green-house);
   color: #fff;

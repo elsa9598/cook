@@ -1,4 +1,6 @@
-const STORAGE_KEY = "yorijambaengi-state-v1";
+import { INGREDIENT_DB, CATEGORY_EN, emojiFor, ingredientLookup, autoCategory, EN_NAME } from "./ingredients.js";
+
+const STORAGE_KEY = "yorijambaengi-state-v2";
 const POPUP_KEY = "yorijambaengi-free-popup-date";
 
 const ko = {
@@ -107,6 +109,17 @@ const ko = {
   sourceInternet: "무료 레시피 DB 참고",
   sourceLocal: "로컬 셰프 규칙",
   referenceRecipe: "참고 요리",
+  searchNamePlaceholder: "재료 이름 검색 (예: 양파, 연어, 두부…)",
+  webSearchTitle: "무료 웹 검색",
+  close: "닫기",
+  openGoogle: "구글",
+  openNaver: "네이버",
+  openYoutube: "유튜브",
+  pasteRecipeHelp: "검색 결과에서 요리법을 복사한 뒤, 아래 메모에 붙여넣고 저장하세요.",
+  saveMemo: "메모 저장",
+  searchTerm: "검색어",
+  amountUnit: "수량/단위",
+  noMemo: "저장된 메모가 없어요. 무료 웹 검색으로 요리법을 채워보세요.",
 };
 
 const en = {
@@ -215,6 +228,17 @@ const en = {
   sourceInternet: "Free recipe DB reference",
   sourceLocal: "Local chef rules",
   referenceRecipe: "Reference recipe",
+  searchNamePlaceholder: "Search ingredient name (e.g. onion, salmon, tofu…)",
+  webSearchTitle: "Free web search",
+  close: "Close",
+  openGoogle: "Google",
+  openNaver: "Naver",
+  openYoutube: "YouTube",
+  pasteRecipeHelp: "Copy a recipe from the search results, paste it into the memo below, and save.",
+  saveMemo: "Save memo",
+  searchTerm: "Search term",
+  amountUnit: "Amount/unit",
+  noMemo: "No memo saved yet. Use free web search to fill in a recipe.",
 };
 
 const storageTypes = {
@@ -618,7 +642,7 @@ const recipeProfiles = {
 const state = loadState();
 let selectedTab = "home";
 let selectedStorage = "fridge";
-let selectedSeasoningCategory = "all";
+let categoryFilter = { fridge: "all", freezer: "all", sauce: "all", room: "all" };
 let selectedCookMode = "fridgeClean";
 let servings = 1;
 let recipe = null;
@@ -639,57 +663,11 @@ function defaultState() {
 }
 
 function seedInventory() {
-  return {
-    fridge: [
-      item("달걀", 6, "개", "단백질", "", null),
-      item("대파", 1, "단", "채소", "", null),
-      item("두부", 1, "모", "단백질", "", null),
-      item("양파", 2, "개", "채소", "", null),
-      item("당근", 1, "개", "채소", "", null),
-      item("애호박", 1, "개", "채소", "", null),
-      item("김치", 1, "통", "기본", "", null),
-      item("우유", 1, "통", "유제품", "", null),
-      item("치즈", 4, "장", "유제품", "", null),
-      item("버터", 1, "개", "유제품", "", null),
-    ],
-    freezer: [
-      item("냉동 만두", 12, "개", "간편식", "", null),
-      item("냉동밥", 2, "개", "간편식", "", null),
-      item("냉동 대패삼겹살", 1, "봉지", "냉동재료", "", null),
-      item("냉동 새우", 1, "봉지", "냉동재료", "", null),
-      item("냉동 브로콜리", 1, "봉지", "냉동재료", "", null),
-      item("냉동 블루베리", 1, "봉지", "냉동재료", "", null),
-    ],
-    sauce: [
-      item("간장", 7, "스푼", "기본 간", describeSeasoning("간장"), null),
-      item("고추장", 3, "스푼", "매운맛", describeSeasoning("고추장"), null),
-      item("참기름", 2, "스푼", "기름/향", describeSeasoning("참기름"), null),
-      item("된장", 4, "스푼", "기본 간", describeSeasoning("된장"), null),
-      item("소금", 6, "스푼", "기본 간", describeSeasoning("소금"), null),
-      item("설탕", 6, "스푼", "단맛", describeSeasoning("설탕"), null),
-      item("후추", 5, "스푼", "향신료", describeSeasoning("후추"), null),
-      item("식초", 4, "스푼", "소스", describeSeasoning("식초"), null),
-      item("고춧가루", 4, "스푼", "매운맛", "", null),
-      item("식용유", 1, "통", "기름/향", "", null),
-      item("굴소스", 2, "스푼", "소스", "", null),
-      item("마요네즈", 1, "통", "소스", "", null),
-      item("케첩", 1, "통", "소스", "", null),
-    ],
-    room: [
-      item("식빵", 4, "장", "빵", "", null),
-      item("라면", 2, "봉", "면", "", null),
-      item("쌀", 3, "컵", "곡물", "", null),
-      item("파스타면", 1, "봉지", "면", "", null),
-      item("참치캔", 2, "캔", "통조림", "", null),
-      item("김", 5, "장", "기본", "", null),
-      item("감자", 3, "개", "구황작물", "", null),
-      item("고구마", 2, "개", "구황작물", "", null),
-      item("밀가루", 2, "컵", "곡물", "", null),
-    ],
-  };
+  // The pantry starts empty; users build it from the 500-per-type ingredient database.
+  return { fridge: [], freezer: [], sauce: [], room: [] };
 }
 
-function item(name, amount, unit, category, memo, photo) {
+function item(name, amount, unit, category, memo, photo, emoji) {
   return {
     id: crypto.randomUUID(),
     name,
@@ -698,6 +676,7 @@ function item(name, amount, unit, category, memo, photo) {
     category,
     memo,
     photo,
+    emoji: emoji || null,
     createdAt: new Date().toISOString(),
   };
 }
@@ -716,17 +695,16 @@ function saveState() {
 }
 
 function normalizeState() {
-  const base = seedInventory();
   state.inventory = state.inventory || {};
-  Object.entries(base).forEach(([type, defaults]) => {
+  ["fridge", "freezer", "sauce", "room"].forEach((type) => {
     state.inventory[type] = Array.isArray(state.inventory[type]) ? state.inventory[type] : [];
-    defaults.forEach((entry) => {
-      if (!state.inventory[type].some((saved) => saved.name === entry.name)) {
-        state.inventory[type].push(entry);
-      }
-    });
   });
   saveState();
+}
+
+// Illustration emoji for an item: its stored emoji, else derived from the name.
+function itemEmoji(entry, type) {
+  return entry.emoji || emojiFor(entry.name, type) || storageTypes[type].emoji;
 }
 
 function activeLang() {
@@ -746,7 +724,7 @@ function formatText(template, values) {
 }
 
 function displayName(name) {
-  return activeLang() === "ko" ? name : ingredientTranslations[name] || name;
+  return activeLang() === "ko" ? name : ingredientTranslations[name] || EN_NAME[name] || name;
 }
 
 function displayUnit(unit) {
@@ -757,7 +735,7 @@ function displayCategory(category) {
   if (!category) return t("defaultCategory");
   const categoryFromKey = seasoningCategories[category]?.[activeLang()];
   if (categoryFromKey) return categoryFromKey;
-  return activeLang() === "ko" ? category : categoryTranslations[category] || category;
+  return activeLang() === "ko" ? category : categoryTranslations[category] || CATEGORY_EN[category] || category;
 }
 
 function displayMemo(entry, type) {
@@ -923,11 +901,50 @@ function renderStoragePage(type) {
   return `
     ${type === "fridge" || type === "freezer" ? renderColdSwitch() : ""}
     ${renderAddForm(type)}
+    ${renderCategoryFilter(type)}
+    ${renderInventoryGrid(type)}
+  `;
+}
+
+function renderCategoryFilter(type) {
+  const cats = [...new Set(state.inventory[type].map((entry) => entry.category).filter(Boolean))];
+  if (cats.length <= 1) return "";
+  const active = categoryFilter[type] || "all";
+  return `
     <section class="section">
-      <div class="item-list">
-        ${state.inventory[type].length ? state.inventory[type].map((entry) => renderInventoryItem(entry, type)).join("") : `<div class="card empty">${t("empty")}</div>`}
+      <div class="category-row">
+        <button class="chip ${active === "all" ? "active" : ""}" data-cat-filter="${type}:all">${t("all")}</button>
+        ${cats
+          .map((cat) => `<button class="chip ${active === cat ? "active" : ""}" data-cat-filter="${type}:${escapeAttr(cat)}">${displayCategory(cat)}</button>`)
+          .join("")}
       </div>
     </section>
+  `;
+}
+
+function renderInventoryGrid(type) {
+  const active = categoryFilter[type] || "all";
+  const list = active === "all"
+    ? state.inventory[type]
+    : state.inventory[type].filter((entry) => entry.category === active);
+  if (!list.length) return `<section class="section"><div class="card empty">${t("empty")}</div></section>`;
+  return `
+    <section class="section">
+      <div class="ingredient-grid">
+        ${list.map((entry) => renderIngredientIcon(entry, type)).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderIngredientIcon(entry, type) {
+  const low = Number(entry.amount) <= (type === "sauce" ? 2 : 1);
+  return `
+    <button class="ingredient-icon ${low ? "low" : ""}" data-detail="${type}:${entry.id}" title="${escapeAttr(displayName(entry.name))}">
+      <span class="icon-art">${entry.photo ? `<img src="${entry.photo}" alt="" />` : itemEmoji(entry, type)}</span>
+      <span class="icon-name">${displayName(entry.name)}</span>
+      <span class="icon-qty">${entry.amount}${displayUnit(entry.unit)}</span>
+    </button>
   `;
 }
 
@@ -962,9 +979,15 @@ function renderAddForm(type) {
           </div>
           <p class="photo-help" data-photo-status="${type}">${t("photoHelp")}</p>
         </div>
-        <div class="field">
+        <div class="field name-field">
           <label>${t("name")}</label>
-          <input name="name" required placeholder="${isSauce ? t("exampleSauce") : t("exampleIngredient")}" data-name-input />
+          <div class="name-row">
+            <span class="name-emoji" data-name-emoji="${type}">${storageTypes[type].emoji}</span>
+            <input name="name" required placeholder="${t("searchNamePlaceholder")}" list="ing-list-${type}" autocomplete="off" data-name-input="${type}" />
+          </div>
+          <datalist id="ing-list-${type}">
+            ${INGREDIENT_DB[type].map((it) => `<option value="${escapeAttr(it.name)}">${escapeAttr(displayCategory(it.category))}</option>`).join("")}
+          </datalist>
         </div>
         <div class="grid-2">
           <div class="field">
@@ -991,49 +1014,9 @@ function renderAddForm(type) {
   `;
 }
 
-function renderInventoryItem(entry, type) {
-  const low = Number(entry.amount) <= (type === "sauce" ? 2 : 1);
-  return `
-    <article class="inventory-item ${low ? "low" : ""}">
-      <div class="thumb">${entry.photo ? `<img src="${entry.photo}" alt="" />` : storageTypes[type].emoji}</div>
-      <div>
-        <p class="item-name">${displayName(entry.name)}</p>
-        <p class="item-meta">${entry.amount}${displayUnit(entry.unit)} · ${displayCategory(entry.category)}${displayMemo(entry, type) ? `<br>${displayMemo(entry, type)}` : ""}</p>
-      </div>
-      <div class="item-actions">
-        ${type === "sauce" ? `<button class="tiny-button" data-detail="${entry.id}">${t("detail")}</button>` : ""}
-        <button class="tiny-button" data-web-search="${escapeAttr(entry.name)}">${t("searchWeb")}</button>
-        <button class="tiny-button" data-edit="${type}:${entry.id}">${t("edit")}</button>
-        <button class="tiny-button" data-use="${type}:${entry.id}">${t("use")}</button>
-        <button class="tiny-button delete-button" data-delete="${type}:${entry.id}" title="${t("delete")}">${t("deleteSymbol")}</button>
-      </div>
-    </article>
-  `;
-}
-
 function renderSaucePage() {
-  const filtered = selectedSeasoningCategory === "all"
-    ? state.inventory.sauce
-    : state.inventory.sauce.filter((entry) => categoryKey(entry.category) === selectedSeasoningCategory);
-  return `
-    ${renderAddForm("sauce")}
-    <section class="section">
-      <div class="section-head">
-        <h2 class="section-title">${t("allSeasonings")}</h2>
-      </div>
-      <div class="category-row">
-        <button class="chip ${selectedSeasoningCategory === "all" ? "active" : ""}" data-season-cat="all">${t("all")}</button>
-        ${Object.entries(seasoningCategories)
-          .map(([key, label]) => `<button class="chip ${selectedSeasoningCategory === key ? "active" : ""}" data-season-cat="${key}">${label[state.lang]}</button>`)
-          .join("")}
-      </div>
-    </section>
-    <section class="section">
-      <div class="item-list">
-        ${filtered.length ? filtered.map((entry) => renderInventoryItem(entry, "sauce")).join("") : `<div class="card empty">${t("empty")}</div>`}
-      </div>
-    </section>
-  `;
+  // Same grid + filter layout as the fridge/freezer/room pages.
+  return renderStoragePage("sauce");
 }
 
 function renderRecipePage() {
@@ -1148,7 +1131,8 @@ function bottomTab(key, emoji, label) {
 function renderModal() {
   if (modal === "signup" || modal === "login") return renderAuthModal(modal);
   if (modal === "celebrate") return renderCelebrationModal();
-  if (modal?.startsWith("detail:")) return renderDetailModal(modal.split(":")[1]);
+  if (modal?.startsWith("detail:")) return renderDetailModal(modal.split(":")[1], modal.split(":")[2]);
+  if (modal?.startsWith("websearch:")) return renderWebSearchModal(modal.split(":")[1], modal.split(":")[2]);
   if (modal?.startsWith("edit:")) return renderEditModal(modal.split(":")[1], modal.split(":")[2]);
   return "";
 }
@@ -1197,21 +1181,65 @@ function renderCelebrationModal() {
   `;
 }
 
-function renderDetailModal(id) {
-  const entry = state.inventory.sauce.find((x) => x.id === id);
+function renderDetailModal(type, id) {
+  const entry = state.inventory[type]?.find((x) => x.id === id);
   if (!entry) return "";
-  const info = enrichSeasoning(entry.name, entry.memo);
+  const memo = displayMemo(entry, type);
   return `
     <div class="modal-backdrop">
-      <article class="modal">
-        <h2>${displayName(entry.name)}</h2>
-        <p><strong>${displayCategory(entry.category || info.category)}</strong> · ${entry.amount}${displayUnit(entry.unit)}</p>
-        <p>${info.usage}</p>
-        <p>${info.tip}</p>
-        <p>${formatText(t("searchHint"), { name: displayName(entry.name) })}</p>
+      <article class="modal detail-modal">
+        <button class="modal-close" data-action="close-modal" aria-label="${t("close")}">×</button>
+        <div class="detail-head">
+          <span class="detail-art">${entry.photo ? `<img src="${entry.photo}" alt="" />` : itemEmoji(entry, type)}</span>
+          <div>
+            <h2>${displayName(entry.name)}</h2>
+            <p class="detail-meta"><strong>${displayCategory(entry.category)}</strong> · ${entry.amount}${displayUnit(entry.unit)}</p>
+          </div>
+        </div>
+        <div class="detail-memo">
+          <label>${t("memo")}</label>
+          <p>${memo ? escapeHtml(memo).replaceAll("\n", "<br>") : t("noMemo")}</p>
+        </div>
+        <button class="ghost-pill detail-search" data-web-search="${type}:${id}">🔎 ${t("searchWeb")}</button>
+        <div class="detail-actions">
+          <button class="tiny-button" data-use="${type}:${id}">${t("use")}</button>
+          <button class="tiny-button" data-edit="${type}:${id}">${t("edit")}</button>
+          <button class="tiny-button delete-button" data-delete="${type}:${id}">${t("delete")}</button>
+        </div>
+        <button class="pill detail-confirm" data-action="close-modal">${t("confirm")}</button>
+      </article>
+    </div>
+  `;
+}
+
+function renderWebSearchModal(type, id) {
+  const entry = state.inventory[type]?.find((x) => x.id === id);
+  if (!entry) return "";
+  const term = `${entry.name} 요리법`;
+  return `
+    <div class="modal-backdrop">
+      <article class="modal websearch-modal">
+        <div class="websearch-head">
+          <h2>${t("webSearchTitle")}</h2>
+          <button class="modal-close" data-websearch-close="${type}:${id}" aria-label="${t("close")}">×</button>
+        </div>
+        <div class="field">
+          <label>${t("searchTerm")}</label>
+          <input type="text" data-search-term value="${escapeAttr(term)}" />
+        </div>
+        <div class="websearch-engines">
+          <button class="pill" data-search-open="google">${t("openGoogle")}</button>
+          <button class="ghost-pill" data-search-open="naver">${t("openNaver")}</button>
+          <button class="ghost-pill" data-search-open="youtube">${t("openYoutube")}</button>
+        </div>
+        <p class="photo-help">${t("pasteRecipeHelp")}</p>
+        <div class="field">
+          <label>${t("memo")}</label>
+          <textarea data-search-memo rows="6" placeholder="${t("itemMemoPlaceholder")}">${escapeHtml(entry.memo || "")}</textarea>
+        </div>
         <div class="modal-actions">
-          <button class="ghost-pill" data-web-search="${entry.name}">${t("searchWeb")}</button>
-          <button class="pill" data-action="close-modal">${t("confirm")}</button>
+          <button class="ghost-pill" data-websearch-close="${type}:${id}">${t("close")}</button>
+          <button class="pill" data-search-save="${type}:${id}">${t("saveMemo")}</button>
         </div>
       </article>
     </div>
@@ -1330,19 +1358,53 @@ function bindEvents() {
       render();
     });
   });
-  document.querySelectorAll("[data-season-cat]").forEach((button) => {
+  document.querySelectorAll("[data-cat-filter]").forEach((button) => {
     button.addEventListener("click", () => {
-      selectedSeasoningCategory = button.dataset.seasonCat;
+      const [type, cat] = button.dataset.catFilter.split(":");
+      categoryFilter[type] = cat;
       render();
     });
   });
+  document.querySelectorAll("[data-name-input]").forEach((input) => {
+    input.addEventListener("input", () => applyNameSuggestion(input));
+  });
+  // Open the in-app web search panel (data-web-search = "type:id").
   document.querySelectorAll("[data-web-search]").forEach((button) => {
     button.addEventListener("click", () => {
-      const queryText = state.lang === "ko"
-        ? `${button.dataset.webSearch} 요리 활용법 맛 보관법`
-        : `${displayName(button.dataset.webSearch)} cooking uses taste storage tips`;
-      const query = encodeURIComponent(queryText);
-      window.open(`https://www.google.com/search?q=${query}`, "_blank", "noopener,noreferrer");
+      modal = `websearch:${button.dataset.webSearch}`;
+      render();
+    });
+  });
+  document.querySelectorAll("[data-search-open]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const term = document.querySelector("[data-search-term]")?.value?.trim() || "";
+      const q = encodeURIComponent(term);
+      const engine = button.dataset.searchOpen;
+      const url = engine === "naver"
+        ? `https://search.naver.com/search.naver?query=${q}`
+        : engine === "youtube"
+          ? `https://www.youtube.com/results?search_query=${q}`
+          : `https://www.google.com/search?q=${q}`;
+      window.open(url, "_blank", "noopener,noreferrer");
+    });
+  });
+  document.querySelectorAll("[data-search-save]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const [type, id] = button.dataset.searchSave.split(":");
+      const entry = state.inventory[type]?.find((x) => x.id === id);
+      const memoValue = document.querySelector("[data-search-memo]")?.value || "";
+      if (entry) {
+        entry.memo = memoValue.trim();
+        saveState();
+      }
+      modal = `detail:${type}:${id}`;
+      render();
+    });
+  });
+  document.querySelectorAll("[data-websearch-close]").forEach((button) => {
+    button.addEventListener("click", () => {
+      modal = `detail:${button.dataset.websearchClose}`;
+      render();
     });
   });
   document.querySelectorAll("[data-input='servings']").forEach((input) => {
@@ -1350,6 +1412,21 @@ function bindEvents() {
       servings = Math.max(1, Number(input.value) || 1);
     });
   });
+}
+
+// When the user picks/types an ingredient name, auto-fill category and illustration.
+function applyNameSuggestion(input) {
+  const type = input.dataset.nameInput;
+  const form = input.closest("form");
+  const name = String(input.value || "").trim();
+  const emojiSlot = form?.querySelector(`[data-name-emoji="${type}"]`);
+  if (emojiSlot) emojiSlot.textContent = name ? emojiFor(name, type) : storageTypes[type].emoji;
+  if (!name) return;
+  const hit = ingredientLookup(type, name);
+  const categoryInput = form?.querySelector("[name='category']");
+  if (categoryInput) {
+    categoryInput.value = hit ? hit.category : autoCategory(type, name);
+  }
 }
 
 async function handleAction(event) {
@@ -1438,9 +1515,10 @@ async function handleAddItem(event) {
   let category = String(data.get("category") || "").trim();
   const info = buildSavedItemInfo(name, type, memo);
   memo = memo || info.memo;
-  category = category || info.category;
+  category = category || autoCategory(type, name);
+  const emoji = emojiFor(name, type);
   state.inventory[type].unshift(
-    item(name, Number(data.get("amount")) || 0, String(data.get("unit") || "개"), category, memo, photo)
+    item(name, Number(data.get("amount")) || 0, String(data.get("unit") || "개"), category, memo, photo, emoji)
   );
   saveState();
   render();
