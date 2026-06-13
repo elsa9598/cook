@@ -47,6 +47,7 @@ const ko = {
   seasonTitle: "양념보관창고",
   allSeasonings: "전체 양념",
   recipeSmall: "요리순서",
+  ingredientAmounts: "정확한 계량",
   shopping: "장보기 재료",
   steps: "요리 순서",
   copyPrompt: "최종 이미지 영어 프롬프트 복사",
@@ -86,7 +87,7 @@ const ko = {
   servingsSuffix: "인분",
   basicIngredients: "기본 재료",
   storageIngredients: "보관 재료",
-  recipeSummary: "{items}를 중심으로 만든 초보용 추천이에요. 없는 재료는 장보기 목록에 따로 뺐어요.",
+  recipeSummary: "{items} 중심의 초보용 추천이에요. 없는 재료는 장보기 목록에 따로 뺐어요.",
   stepPrepTitle: "재료 모으기",
   stepPrepText: "{items}를 꺼내고 {servings}인분 기준으로 먹기 좋은 크기로 준비해요.",
   stepHeatTitle: "기본 익히기",
@@ -149,6 +150,7 @@ const en = {
   seasonTitle: "Seasoning Storage",
   allSeasonings: "All seasonings",
   recipeSmall: "Recipe",
+  ingredientAmounts: "Exact measurements",
   shopping: "Shopping list",
   steps: "Cooking order",
   copyPrompt: "Copy final image prompt",
@@ -392,7 +394,9 @@ const recipeProfiles = {
     enTitle: "milk and egg pan dessert",
     searchTerms: ["pancake", "dessert", "cake"],
     allow: ["우유", "달걀", "설탕", "버터", "식빵", "밀가루", "고구마", "냉동 블루베리"],
-    required: ["우유", "설탕", "달걀"],
+    required: ["우유", "설탕", "달걀", "버터", "냉동 블루베리", "밀가루"],
+    visualHintKo: "노릇하게 부푼 가장자리, 촉촉한 노란 커스터드 속, 블루베리와 설탕이 보이는 작은 팬 디저트",
+    visualHintEn: "a golden skillet custard pancake with puffed browned edges, a soft yellow center, blueberries embedded on top, and a light powdered sugar dusting",
     methodKo: ["우유, 달걀, 설탕을 부드럽게 섞어 달콤한 베이스를 만들어요.", "식빵이나 고구마처럼 단맛과 어울리는 재료만 넣어요.", "약불에서 천천히 익혀 겉은 촉촉하고 가장자리는 살짝 노릇하게 만들어요.", "블루베리나 설탕을 살짝 올려 디저트처럼 마무리해요."],
     methodEn: ["Whisk milk, egg, and sugar into a soft sweet base.", "Use dessert-friendly ingredients like bread or sweet potato only.", "Cook slowly over low heat until moist with lightly golden edges.", "Finish with blueberries or a light dusting of sugar."],
   },
@@ -401,7 +405,9 @@ const recipeProfiles = {
     enTitle: "beginner pan bread",
     searchTerms: ["bread", "pancake", "scone"],
     allow: ["밀가루", "우유", "버터", "설탕", "소금", "달걀", "식빵", "치즈"],
-    required: ["밀가루", "우유", "버터", "설탕"],
+    required: ["밀가루", "우유", "버터", "설탕", "소금"],
+    visualHintKo: "팬에서 구운 둥근 빵, 노릇한 표면, 버터가 녹아 윤기 나는 초보용 팬브레드",
+    visualHintEn: "a round beginner pan bread cooked in a skillet, golden brown outside, soft crumb inside, with melted butter gloss on top",
     methodKo: ["밀가루, 우유, 설탕, 소금을 섞어 되직한 반죽을 만들어요.", "버터를 조금 넣어 반죽 표면이 부드러워질 때까지 섞어요.", "약불 팬에 반죽을 올리고 뚜껑을 덮어 천천히 익혀요.", "겉이 노릇하고 속이 촉촉해지면 버터 향이 나게 마무리해요."],
     methodEn: ["Mix flour, milk, sugar, and salt into a thick batter.", "Fold in a little butter until the surface looks smooth.", "Cook the batter slowly in a covered pan over low heat.", "Finish when the outside is golden and the inside stays soft."],
   },
@@ -883,6 +889,17 @@ function renderRecipePage() {
       </div>
     </section>
     <section class="section card">
+      <h2 class="section-title">${t("ingredientAmounts")}</h2>
+      <div class="measure-list" style="margin-top: 10px">
+        ${recipe.ingredients.map((entry) => `
+          <div>
+            <strong>${entry.label}</strong>
+            <span>${entry.amount}</span>
+          </div>
+        `).join("")}
+      </div>
+    </section>
+    <section class="section card">
       <h2 class="section-title">${t("shopping")}</h2>
       <div class="shopping-list" style="margin-top: 10px">
         ${recipe.shopping.length ? recipe.shopping.map((x) => `<div>${x}</div>`).join("") : `<div>${t("noShopping")}</div>`}
@@ -1299,43 +1316,56 @@ async function makeRecipe() {
   const mode = cookModes.find(([key]) => key === selectedCookMode);
   const displayMain = pickedNames.map(displayName);
   const englishMain = pickedNames.map((name) => ingredientTranslations[name] || name);
+  const measuredIngredients = buildMeasuredIngredients(selectedCookMode, profile, pickedNames, servings);
   const modeName = state.lang === "ko" ? profile.koTitle : profile.enTitle;
   const englishModeName = profile.enTitle || mode?.[2] || "easy home cooking";
   const title = state.lang === "ko"
     ? `${modeName} ${servings}${t("servingsSuffix")}`
     : `${modeName} for ${servings} ${t("servingsSuffix")}`;
   const englishTitle = `${englishModeName} for ${servings} servings`;
-  const required = requiredForMode(selectedCookMode, servings);
-  const shopping = required.filter((need) => !names.some((name) => ingredientMatchesNeed(name, need)));
+  const missingNames = (profile.required || []).filter((need) => !names.some((name) => ingredientMatchesNeed(name, need)));
+  const shopping = missingNames.map((name) => formatShoppingNeed(name, measuredIngredients));
   const mainText = displayMain.join(", ") || t("basicIngredients");
   const reference = await fetchRecipeReference(profile, englishMain);
-  const visual = buildVisualDescription(englishModeName, englishMain);
+  const visual = buildVisualDescription(englishModeName, englishMain, measuredIngredients, profile);
   const visualText = state.lang === "ko"
-    ? `${displayMain.join(", ") || "집에 있는 재료"}가 한 접시에 보기 좋게 담기고, 윤기와 김이 살아 있어 완성 이미지를 만들면 따뜻한 집밥 느낌이 나요.`
+    ? buildKoreanVisualDescription(displayMain, measuredIngredients, profile)
     : visual;
   const sourceLabel = reference
     ? `${t("sourceInternet")}: TheMealDB`
     : t("sourceLocal");
   recipe = {
     title,
-    summary: buildSmartSummary(mainText, reference),
+    summary: buildSmartSummary(mainText, reference, measuredIngredients),
+    ingredients: measuredIngredients.map((entry) => ({
+      label: state.lang === "ko" ? displayName(entry.name) : entry.enName,
+      amount: state.lang === "ko" ? entry.ko : entry.en,
+    })),
     shopping,
-    steps: buildRecipeSteps(profile, displayMain),
+    steps: buildRecipeSteps(selectedCookMode, profile, measuredIngredients),
     visual: visualText,
     reference,
     sourceLabel,
-    prompt: buildFoodPrompt(englishTitle, englishMain, englishModeName, visual, reference),
+    prompt: buildFoodPrompt(englishTitle, englishMain, measuredIngredients, englishModeName, visual, reference),
   };
-  consumeForRecipe();
+  consumeForRecipe(pickedNames);
   saveState();
 }
 
-function buildSmartSummary(mainText, reference) {
+function buildSmartSummary(mainText, reference, measuredIngredients) {
+  const measureLine = measuredIngredients.slice(0, 3).map((entry) => (
+    state.lang === "ko"
+      ? `${displayName(entry.name)} ${entry.ko}`
+      : `${entry.enName} ${entry.en}`
+  )).join(", ");
   const base = formatText(t("recipeSummary"), { items: mainText });
-  if (!reference) return base;
+  const precise = measureLine
+    ? (state.lang === "ko" ? ` 먼저 ${measureLine}처럼 계량해서 시작해요.` : ` Start by measuring ${measureLine}.`)
+    : "";
+  if (!reference) return `${base}${precise}`;
   return state.lang === "ko"
-    ? `${base} 무료 레시피 DB의 “${reference.name}”도 참고했어요.`
-    : `${base} Also checked the free recipe DB reference "${reference.name}".`;
+    ? `${base}${precise} 무료 레시피 DB의 “${reference.name}”도 참고했어요.`
+    : `${base}${precise} Also checked the free recipe DB reference "${reference.name}".`;
 }
 
 function pickRecipeItems(items, profile) {
@@ -1350,23 +1380,350 @@ function pickRecipeItems(items, profile) {
   return picked;
 }
 
+function buildMeasuredIngredients(mode, profile, pickedNames, count) {
+  const names = [...new Set([...(profile.required || []), ...pickedNames])]
+    .filter((name) => profile.allow.includes(name))
+    .slice(0, 7);
+  return names.map((name) => {
+    const amount = measureIngredient(name, mode, count);
+    return {
+      name,
+      enName: ingredientTranslations[name] || name,
+      ko: amount.ko,
+      en: amount.en,
+    };
+  });
+}
+
+function measureIngredient(name, mode, count) {
+  const serving = Math.max(1, Number(count) || 1);
+  const byMode = {
+    dessert: {
+      우유: ml(120, serving),
+      달걀: pieces("egg", serving),
+      설탕: spoons(1.5, serving),
+      버터: spoons(0.5, serving),
+      밀가루: spoons(3, serving),
+      식빵: slices(1, serving),
+      고구마: pieces("sweet potato", 0.5 * serving),
+      "냉동 블루베리": spoons(2, serving),
+    },
+    bread: {
+      밀가루: cups(0.75, serving),
+      우유: ml(80, serving),
+      버터: spoons(1, serving),
+      설탕: spoons(1, serving),
+      소금: pinches(serving),
+      달걀: pieces("egg", serving),
+      식빵: slices(1, serving),
+      치즈: slices(1, serving),
+    },
+    snack: {
+      식빵: slices(2, serving),
+      달걀: pieces("egg", serving),
+      치즈: slices(1, serving),
+      버터: spoons(0.5, serving),
+      마요네즈: spoons(0.5, serving),
+      케첩: spoons(0.5, serving),
+      참치캔: cans(0.5, serving),
+      우유: ml(50, serving),
+      설탕: spoons(0.5, serving),
+    },
+    fridgeClean: {
+      달걀: pieces("egg", serving),
+      대파: lengthUnit("대", "stalk", 0.5, serving),
+      두부: blocks(0.5, serving),
+      양파: pieces("onion", 0.5 * serving),
+      당근: pieces("carrot", 0.3 * serving),
+      애호박: pieces("zucchini", 0.3 * serving),
+      김치: cups(0.5, serving),
+      간장: spoons(1, serving),
+      식용유: spoons(1, serving),
+      참기름: spoons(0.5, serving),
+      고추장: spoons(0.5, serving),
+      밥: bowls(1, serving),
+      냉동밥: bowls(1, serving),
+    },
+    party: {
+      치즈: slices(1, serving),
+      식빵: slices(2, serving),
+      참치캔: cans(0.5, serving),
+      "냉동 새우": pieces("shrimp", 4 * serving),
+      "냉동 브로콜리": cups(0.5, serving),
+      감자: pieces("potato", 0.5 * serving),
+      마요네즈: spoons(1, serving),
+      케첩: spoons(0.5, serving),
+      식용유: spoons(0.5, serving),
+    },
+    korean: {
+      밥: bowls(1, serving),
+      쌀: cups(0.5, serving),
+      김치: cups(0.7, serving),
+      두부: blocks(0.5, serving),
+      대파: lengthUnit("대", "stalk", 0.5, serving),
+      양파: pieces("onion", 0.5 * serving),
+      달걀: pieces("egg", serving),
+      간장: spoons(1, serving),
+      고추장: spoons(0.7, serving),
+      참기름: spoons(0.5, serving),
+    },
+    japanese: {
+      밥: bowls(1, serving),
+      쌀: cups(0.5, serving),
+      달걀: pieces("egg", 1.5 * serving),
+      양파: pieces("onion", 0.5 * serving),
+      대파: lengthUnit("대", "stalk", 0.3, serving),
+      간장: spoons(1, serving),
+      설탕: spoons(0.5, serving),
+      식초: spoons(0.3, serving),
+      김: sheets(0.5, serving),
+      "냉동 새우": pieces("shrimp", 4 * serving),
+    },
+    chinese: {
+      대파: lengthUnit("대", "stalk", 1, serving),
+      양파: pieces("onion", 0.5 * serving),
+      당근: pieces("carrot", 0.3 * serving),
+      "냉동 새우": pieces("shrimp", 5 * serving),
+      달걀: pieces("egg", serving),
+      밥: bowls(1, serving),
+      냉동밥: bowls(1, serving),
+      간장: spoons(1, serving),
+      굴소스: spoons(0.7, serving),
+      식용유: spoons(1, serving),
+    },
+    meat: {
+      "냉동 대패삼겹살": grams(180, serving),
+      양파: pieces("onion", 0.5 * serving),
+      대파: lengthUnit("대", "stalk", 0.5, serving),
+      마늘: pieces("garlic clove", 2 * serving),
+      소금: pinches(serving),
+      후추: shakes(3, serving),
+      식용유: spoons(0.5, serving),
+      간장: spoons(0.7, serving),
+      참기름: spoons(0.3, serving),
+      김치: cups(0.5, serving),
+    },
+    quick: {
+      밥: bowls(1, serving),
+      냉동밥: bowls(1, serving),
+      달걀: pieces("egg", serving),
+      간장: spoons(1, serving),
+      참기름: spoons(0.5, serving),
+      김: sheets(0.5, serving),
+      대파: lengthUnit("대", "stalk", 0.3, serving),
+      후추: shakes(2, serving),
+    },
+  };
+  return byMode[mode]?.[name] || genericMeasure(name, serving);
+}
+
+function genericMeasure(name, serving) {
+  if (name.includes("간장") || name.includes("소스") || name.includes("기름")) return spoons(1, serving);
+  if (name.includes("소금") || name.includes("후추")) return pinches(serving);
+  if (name.includes("밥")) return bowls(1, serving);
+  if (name.includes("달걀")) return pieces("egg", serving);
+  return { ko: `${nice(serving)}인분 사용할 만큼`, en: `enough for ${nice(serving)} serving${serving > 1 ? "s" : ""}` };
+}
+
+function nice(value) {
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+}
+
+function plural(word, amount) {
+  if (word === "tbsp") return `${nice(amount)} tbsp`;
+  if (amount <= 1) return `${nice(amount)} ${word}`;
+  if (word === "sweet potato") return `${nice(amount)} sweet potatoes`;
+  if (word.endsWith("sh")) return `${nice(amount)} ${word}`;
+  return `${nice(amount)} ${word}s`;
+}
+
+function spoons(amount, serving) {
+  const value = amount * serving;
+  return { ko: `${nice(value)}스푼`, en: plural("tbsp", value) };
+}
+
+function cups(amount, serving) {
+  const value = amount * serving;
+  return { ko: `${nice(value)}컵`, en: plural("cup", value) };
+}
+
+function ml(amount, serving) {
+  const value = Math.round(amount * serving);
+  return { ko: `${value}ml`, en: `${value} ml` };
+}
+
+function grams(amount, serving) {
+  const value = Math.round(amount * serving);
+  return { ko: `${value}g`, en: `${value} g` };
+}
+
+function pieces(word, value) {
+  return { ko: `${nice(value)}개`, en: plural(word, value) };
+}
+
+function slices(amount, serving) {
+  const value = amount * serving;
+  return { ko: `${nice(value)}장`, en: plural("slice", value) };
+}
+
+function sheets(amount, serving) {
+  const value = amount * serving;
+  return { ko: `${nice(value)}장`, en: plural("sheet", value) };
+}
+
+function cans(amount, serving) {
+  const value = amount * serving;
+  return { ko: `${nice(value)}캔`, en: plural("can", value) };
+}
+
+function bowls(amount, serving) {
+  const value = amount * serving;
+  return { ko: `${nice(value)}공기`, en: plural("bowl", value) };
+}
+
+function blocks(amount, serving) {
+  const value = amount * serving;
+  return { ko: `${nice(value)}모`, en: plural("block", value) };
+}
+
+function lengthUnit(koUnit, enUnit, amount, serving) {
+  const value = amount * serving;
+  return { ko: `${nice(value)}${koUnit}`, en: plural(enUnit, value) };
+}
+
+function pinches(serving) {
+  return {
+    ko: serving === 1 ? "한 꼬집" : `${nice(serving)}꼬집`,
+    en: serving === 1 ? "1 pinch" : `${nice(serving)} pinches`,
+  };
+}
+
+function shakes(amount, serving) {
+  const value = amount * serving;
+  return { ko: `${nice(value)}번 톡톡`, en: `${nice(value)} shakes` };
+}
+
 function ingredientMatchesNeed(name, need) {
   const en = ingredientTranslations[name] || "";
   return need.includes(name) || (en && need.toLowerCase().includes(en.toLowerCase()));
 }
 
-function buildRecipeSteps(profile, displayMain) {
-  const method = state.lang === "ko" ? profile.methodKo : profile.methodEn;
-  return method.map((text, index) => {
-    const titlesKo = [t("stepPrepTitle"), t("stepHeatTitle"), t("stepSeasonTitle"), t("stepPlateTitle")];
-    const titlesEn = ["Prep", "Cook", "Season", "Plate"];
-    return {
-      title: state.lang === "ko" ? titlesKo[index] : titlesEn[index],
-      text: index === 0 && displayMain.length
-        ? `${text} (${displayMain.join(", ")})`
-        : text,
-    };
-  });
+function buildRecipeSteps(mode, profile, measuredIngredients) {
+  const measuredKo = formatMeasuredList(measuredIngredients, "ko");
+  const measuredEn = formatMeasuredList(measuredIngredients, "en");
+  const titlesKo = [t("stepPrepTitle"), t("stepHeatTitle"), t("stepSeasonTitle"), t("stepPlateTitle")];
+  const titlesEn = ["Measure", "Cook", "Check", "Plate"];
+  const custom = buildPreciseMethod(mode, measuredIngredients);
+  const method = state.lang === "ko" ? custom.ko : custom.en;
+  return method.map((text, index) => ({
+    title: state.lang === "ko" ? titlesKo[index] : titlesEn[index],
+    text: index === 0
+      ? `${text} ${state.lang === "ko" ? `계량: ${measuredKo}.` : `Measurements: ${measuredEn}.`}`
+      : text,
+  }));
+}
+
+function formatMeasuredList(items, lang) {
+  return items.map((entry) => (
+    lang === "ko"
+      ? `${displayName(entry.name)} ${entry.ko}`
+      : `${entry.enName} ${entry.en}`
+  )).join(", ");
+}
+
+function amountOf(items, name, lang = state.lang) {
+  const found = items.find((entry) => entry.name === name);
+  if (!found) return "";
+  return lang === "ko" ? found.ko : found.en;
+}
+
+function buildPreciseMethod(mode, items) {
+  const dessertFlourKo = amountOf(items, "밀가루", "ko");
+  const dessertFlourEn = amountOf(items, "밀가루", "en");
+  const dessertBlueberryKo = amountOf(items, "냉동 블루베리", "ko");
+  const dessertBlueberryEn = amountOf(items, "냉동 블루베리", "en");
+  const ko = {
+    dessert: [
+      `볼에 우유 ${amountOf(items, "우유", "ko")}, 달걀 ${amountOf(items, "달걀", "ko")}, 설탕 ${amountOf(items, "설탕", "ko")}${dessertFlourKo ? `, 밀가루 ${dessertFlourKo}` : ""}을 넣고 30초 섞어요.`,
+      `팬에 버터 ${amountOf(items, "버터", "ko") || "0.5스푼"}을 녹이고 반죽을 부은 뒤${dessertBlueberryKo ? ` 냉동 블루베리 ${dessertBlueberryKo}을 위에 올려요.` : " 달콤한 재료를 위에 올려요."}`,
+      "약불로 낮추고 뚜껑을 덮어 6~8분 익혀요. 가운데를 젓가락으로 찔렀을 때 묽은 반죽이 많이 묻지 않으면 거의 익은 거예요.",
+      "가장자리가 노릇하면 불을 끄고 2분 두었다가 담아요. 설탕을 아주 조금 더 뿌리면 이미지처럼 디저트 느낌이 살아나요.",
+    ],
+    bread: [
+      `볼에 밀가루 ${amountOf(items, "밀가루", "ko")}, 우유 ${amountOf(items, "우유", "ko")}, 설탕 ${amountOf(items, "설탕", "ko")}, 소금 ${amountOf(items, "소금", "ko") || "한 꼬집"}을 넣어 되직하게 섞어요.`,
+      `버터 ${amountOf(items, "버터", "ko")}을 녹여 반죽에 섞고 3분 쉬게 해요. 너무 묽으면 밀가루 1스푼을 더 넣어요.`,
+      "약불 팬에 반죽을 1.5cm 두께로 펴고 뚜껑을 덮어 5~6분, 뒤집어서 4분 더 익혀요.",
+      "겉이 노릇하고 눌렀을 때 천천히 올라오면 완성이에요. 버터를 조금 올려 윤기 있게 담아요.",
+    ],
+    snack: [
+      "식빵, 치즈, 달걀처럼 바로 익는 재료를 계량대로 꺼내요.",
+      "약불 팬에 버터를 녹이고 식빵을 한 면당 1~2분 노릇하게 구워요.",
+      "달걀은 완전히 익히고 치즈는 30초 정도 녹여요. 마요네즈나 케첩은 마지막에 얇게 발라요.",
+      "반으로 잘라 단면이 보이게 세우면 간식 사진처럼 먹기 좋아 보여요.",
+    ],
+    fridgeClean: [
+      "채소는 한입 크기, 두부나 달걀은 부서지지 않게 준비해요.",
+      "중불 팬에 식용유를 두르고 대파를 30초 볶은 뒤 단단한 재료부터 넣어요.",
+      "간장은 1인분 기준 1스푼부터 넣고, 김치나 고추장이 있으면 짠맛을 보며 줄여요.",
+      "불을 끄고 참기름과 후추를 마지막에 넣어 따뜻하게 담아요.",
+    ],
+    korean: [
+      "밥이나 두부, 김치, 대파를 계량대로 꺼내고 김치는 가위로 작게 잘라요.",
+      "중불 팬에 대파를 30초 볶고 김치를 2분 볶아 신맛을 부드럽게 만들어요.",
+      "밥이나 두부를 넣고 간장 또는 고추장을 1인분 기준 1스푼 이하로 나눠 넣어요.",
+      "불을 끄고 참기름을 둘러 한식 집밥 향이 나게 담아요.",
+    ],
+    japanese: [
+      "밥은 따뜻하게 데우고 달걀과 양파를 계량대로 준비해요.",
+      "작은 팬에 양파, 간장, 설탕, 물 2스푼을 넣고 2분 끓여요.",
+      "달걀을 풀어 넣고 약불에서 40~60초만 익혀 촉촉하게 멈춰요.",
+      "밥 위에 그대로 올리고 김이나 대파를 얹어 덮밥처럼 마무리해요.",
+    ],
+    chinese: [
+      "대파는 넉넉히 송송 썰고 밥, 달걀, 새우를 계량대로 꺼내요.",
+      "중강불 팬에 식용유를 두르고 대파를 40초 볶아 향을 낸 뒤 달걀이나 새우를 넣어요.",
+      "밥을 넣고 간장과 굴소스를 가장자리로 둘러 1~2분 빠르게 볶아요.",
+      "후추를 살짝 뿌리고 넓은 접시에 담아 윤기가 보이게 펼쳐요.",
+    ],
+    meat: [
+      "고기는 해동 후 키친타월로 물기를 닦고 소금, 후추를 계량대로 뿌려요.",
+      "팬을 중강불로 1분 예열한 뒤 고기를 겹치지 않게 펼쳐 한 면을 2분 굽어요.",
+      "뒤집어서 1~2분 더 굽고 양파나 대파를 넣어 기름에 같이 익혀요.",
+      "고기 가장자리가 갈색이고 속까지 뜨거우면 기름을 살짝 빼고 담아요.",
+    ],
+    quick: [
+      "밥은 뜨겁게 데우고 달걀, 간장, 참기름을 계량대로 준비해요.",
+      "달걀은 반숙 2분 또는 스크램블 1분 30초로 빠르게 익혀요.",
+      "밥에 간장과 참기름을 먼저 섞고, 간이 부족하면 간장 0.5스푼만 추가해요.",
+      "달걀과 김, 대파를 올려 한 그릇으로 마무리해요.",
+    ],
+    party: [
+      "빵, 치즈, 단백질 재료를 한입 크기로 잘라 계량대로 준비해요.",
+      "새우나 감자는 먼저 완전히 익히고 물기를 닦아 눅눅하지 않게 해요.",
+      "마요네즈와 케첩은 1인분 기준 1스푼 안쪽으로 작게 찍어 올려요.",
+      "색이 다른 재료가 번갈아 보이게 접시에 간격을 두고 담아요.",
+    ],
+  };
+  const en = {
+    dessert: [
+      `Whisk milk ${amountOf(items, "우유", "en")}, egg ${amountOf(items, "달걀", "en")}, sugar ${amountOf(items, "설탕", "en")}${dessertFlourEn ? `, and flour ${dessertFlourEn}` : ""} for 30 seconds.`,
+      `Melt butter ${amountOf(items, "버터", "en") || "0.5 tbsp"} in a skillet, pour in the mixture, and scatter ${dessertBlueberryEn ? `frozen blueberries ${dessertBlueberryEn}` : "a sweet topping"} over it.`,
+      "Cook covered over low heat for 6 to 8 minutes. It is nearly done when a skewer comes out without a lot of runny batter.",
+      "Rest for 2 minutes, then plate it with a tiny extra dusting of sugar for a dessert-like finish.",
+    ],
+    bread: [
+      `Mix flour ${amountOf(items, "밀가루", "en")}, milk ${amountOf(items, "우유", "en")}, sugar ${amountOf(items, "설탕", "en")}, and salt ${amountOf(items, "소금", "en") || "1 pinch"} into a thick batter.`,
+      `Stir in melted butter ${amountOf(items, "버터", "en")} and rest the batter for 3 minutes. Add 1 tbsp flour if it is too loose.`,
+      "Spread it 1.5 cm thick in a low-heat skillet, cover, cook 5 to 6 minutes, flip, then cook 4 more minutes.",
+      "Plate when the surface is golden and the center springs back gently. Finish with a little butter gloss.",
+    ],
+  };
+  const profile = recipeProfiles[mode] || recipeProfiles.fridgeClean;
+  return {
+    ko: ko[mode] || profile.methodKo,
+    en: en[mode] || profile.methodEn,
+  };
 }
 
 function requiredForMode(mode, count) {
@@ -1376,18 +1733,42 @@ function requiredForMode(mode, count) {
     : profile.required.map((name) => ingredientTranslations[name] || name);
 }
 
-function consumeForRecipe() {
+function formatShoppingNeed(name, measuredIngredients) {
+  const measured = measuredIngredients.find((entry) => entry.name === name);
+  if (state.lang === "ko") {
+    return measured ? `${displayName(name)} ${measured.ko}` : displayName(name);
+  }
+  const enName = ingredientTranslations[name] || name;
+  return measured ? `${enName} ${measured.en}` : enName;
+}
+
+function consumeForRecipe(usedNames = []) {
+  const usedSet = new Set(usedNames);
   const allTypes = ["fridge", "freezer", "sauce", "room"];
   allTypes.forEach((type) => {
-    state.inventory[type].slice(0, 2).forEach((entry) => {
+    state.inventory[type].forEach((entry) => {
+      if (!usedSet.has(entry.name)) return;
       entry.amount = Math.max(0, Number(entry.amount) - (type === "sauce" ? 0.5 : 1));
     });
   });
 }
 
-function buildVisualDescription(modeName, ingredients) {
+function buildKoreanVisualDescription(displayMain, measuredIngredients, profile) {
+  const list = displayMain.join(", ") || "집에 있는 재료";
+  const measures = measuredIngredients.slice(0, 4)
+    .map((entry) => `${displayName(entry.name)} ${entry.ko}`)
+    .join(", ");
+  const hint = profile.visualHintKo || `${list}가 한 접시에 보기 좋게 담기고 윤기와 김이 살아 있는 집밥`;
+  return `${measures || list}로 만든 완성 모습은 ${hint}예요. 이미지로 만들면 실제 어떤 비주얼인지 바로 알 수 있게 주재료가 선명하게 보여야 해요.`;
+}
+
+function buildVisualDescription(modeName, ingredients, measuredIngredients, profile) {
   const list = ingredients.filter(Boolean).join(", ") || "simple pantry ingredients";
-  return `The final dish should look like a ${modeName} made with ${list}: glossy, warm, generous, neatly plated, with visible textures, steam, and appetizing color contrast.`;
+  const measures = measuredIngredients
+    .map((entry) => `${entry.enName} ${entry.en}`)
+    .join(", ");
+  const hint = profile.visualHintEn || `a ${modeName} made with ${list}: glossy, warm, generous, neatly plated, with visible textures, steam, and appetizing color contrast`;
+  return `The final dish should look like ${hint}. Use these exact cooking ingredients as visual cues: ${measures || list}.`;
 }
 
 async function fetchRecipeReference(profile, ingredients) {
@@ -1429,12 +1810,15 @@ function normalizeMealReference(meal) {
   };
 }
 
-function buildFoodPrompt(title, ingredients, modeText, visualDescription, reference) {
+function buildFoodPrompt(title, ingredients, measuredIngredients, modeText, visualDescription, reference) {
   const list = ingredients.filter(Boolean).join(", ") || "simple pantry ingredients";
+  const measures = measuredIngredients
+    .map((entry) => `${entry.enName}: ${entry.en}`)
+    .join("; ");
   const referenceLine = reference
     ? `Free recipe reference: ${reference.name}, ${reference.area || "home cooking"} style, with cues from ${reference.ingredients.join(", ")}.`
     : "No external recipe reference was available; use realistic beginner home-cooking presentation.";
-  return `Create a mouthwatering vertical smartphone food photo for "${title}". Style: ${modeText}. Main ingredients from the user's kitchen: ${list}. ${referenceLine} Visual direction: ${visualDescription} Plate the food on a warm ceramic dish, show glossy textures, gentle steam, fresh garnish, appetizing color contrast, realistic home kitchen lighting, shallow depth of field, high detail, no text, no watermark, no hands, no packaging.`;
+  return `Create a mouthwatering vertical smartphone food photo for "${title}". Style: ${modeText}. Main ingredients from the user's kitchen: ${list}. Exact recipe measurements: ${measures}. ${referenceLine} Visual direction: ${visualDescription} The image must match this recipe, not a different dish. Plate the food on a warm ceramic dish, show glossy textures, gentle steam, fresh garnish, appetizing color contrast, realistic home kitchen lighting, shallow depth of field, high detail, no text, no watermark, no hands, no packaging.`;
 }
 
 function describeSeasoning(name) {
