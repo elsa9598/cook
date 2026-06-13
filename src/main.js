@@ -1467,6 +1467,32 @@ function applyNameSuggestion(input) {
   if (categoryInput) {
     categoryInput.value = hit ? hit.category : autoCategory(type, name);
   }
+  const unitInput = form?.querySelector("[name='unit']");
+  if (unitInput) {
+    unitInput.value = defaultUnit(type, name);
+  }
+}
+
+// Map of category → natural Korean measuring unit.
+const UNIT_BY_CATEGORY = {
+  채소: "개", 잎채소: "단", 버섯: "팩", 과일: "개", 유제품: "개", 달걀: "개",
+  육류: "g", 해산물: "g", "콩/두부": "모", "김치/반찬": "g", 음료: "ml",
+  냉동간편식: "개", 냉동채소: "봉지", 냉동과일: "봉지", 냉동해산물: "봉지", 냉동육류: "g",
+  아이스크림: "개", 냉동베이커리: "개", "냉동밥/곡물": "개", 냉동세계요리: "개",
+  기본양념: "스푼", 장류: "스푼", 소스: "스푼", 기름: "스푼", 향신료: "스푼",
+  "식초/드레싱": "스푼", 가루양념: "스푼", 세계양념: "스푼",
+  곡물: "컵", 면류: "봉", 통조림: "캔", "건어물/건조": "g", "견과류/씨앗": "g",
+  "스낵/과자": "봉", 베이킹: "g", "음료/차/커피": "ml", 구황작물: "개", "꿀/시럽/잼": "병", 인스턴트: "개",
+};
+const LIQUID_KEYWORDS = ["우유", "두유", "주스", "에이드", "스무디", "라떼", "콜라", "사이다", "생수", "탄산수", "음료", "드링크", "워터"];
+
+// Pick a sensible unit for an ingredient: liquids → ml, otherwise by category.
+function defaultUnit(type, name) {
+  const n = String(name || "");
+  if (LIQUID_KEYWORDS.some((k) => n.includes(k))) return "ml";
+  const hit = ingredientLookup(type, name);
+  const cat = hit ? hit.category : autoCategory(type, name);
+  return UNIT_BY_CATEGORY[cat] || (type === "sauce" ? "스푼" : "개");
 }
 
 async function handleAction(event) {

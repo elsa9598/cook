@@ -698,6 +698,15 @@ button {
   padding: 12px;
 }
 
+/* Long recipes pasted into the memo scroll inside the box so the X and
+   action buttons stay reachable instead of overflowing the screen. */
+.detail-memo p {
+  max-height: 38vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
 .detail-memo label {
   font-size: 12px;
   font-weight: 900;
@@ -1018,6 +1027,9 @@ button {
 
 .modal {
   width: min(100%, 398px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background: #fff;
   border-radius: var(--radius-card);
   padding: 22px;
