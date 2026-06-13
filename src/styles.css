@@ -433,6 +433,17 @@ button {
   pointer-events: none;
 }
 
+.backup-row-wrap {
+  margin-top: 6px;
+  opacity: 0.9;
+}
+
+.backup-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
 .backup-restore {
   display: flex;
   align-items: center;

@@ -127,7 +127,7 @@ const ko = {
   backupTitle: "보관함 백업",
   backupSave: "백업 저장",
   backupRestore: "백업 복원",
-  backupHint: "보관함을 파일로 저장해 두면 브라우저를 비우거나 기기를 바꿔도 그대로 복원할 수 있어요.",
+  backupHint: "⚠️ 크롬 ‘쿠키·사이트 데이터 삭제’를 하면 보관함이 사라져요. 가끔 ‘백업 저장’으로 파일을 받아두면 언제든 복원할 수 있어요.",
   backupDone: "백업 저장 완료",
   restoreDone: "복원 완료",
   pickType: "요리 종류 고르기",
@@ -687,6 +687,7 @@ let clearoutOptions = [];
 
 normalizeState();
 registerServiceWorker();
+requestPersistentStorage();
 applyLaunchShortcut();
 
 function defaultState() {
@@ -1026,6 +1027,22 @@ function renderStoragePage(type) {
     ${renderAddForm(type)}
     ${renderCategoryFilter(type)}
     ${renderInventoryGrid(type)}
+    ${renderBackupRow()}
+  `;
+}
+
+// Compact backup/restore at the bottom of storage pages (off the home screen).
+function renderBackupRow() {
+  return `
+    <section class="section backup-row-wrap">
+      <div class="backup-row">
+        <button class="tiny-button" data-action="export-backup">⬇ ${t("backupSave")}</button>
+        <label class="tiny-button backup-restore">⬆ ${t("backupRestore")}
+          <input type="file" accept="application/json,.json" data-import-backup />
+        </label>
+      </div>
+      <p class="photo-help">${t("backupHint")}</p>
+    </section>
   `;
 }
 
@@ -2903,6 +2920,16 @@ async function copyText(text) {
     } catch {
       // Some embedded browsers block clipboard APIs; the selected text still lets the user copy.
     }
+  }
+}
+
+// Ask the browser to keep our storage (reduces automatic eviction). Does NOT
+// stop a manual "clear browsing data" — that's why file backups matter.
+function requestPersistentStorage() {
+  try {
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
+  } catch {
+    // ignore
   }
 }
 
