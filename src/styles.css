@@ -665,9 +665,18 @@ button {
 /* Name search field with live illustration preview */
 .name-row {
   display: grid;
-  grid-template-columns: 44px 1fr;
+  grid-template-columns: 44px 1fr 44px;
   gap: 8px;
   align-items: center;
+}
+
+.name-search-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-btn);
+  border: 1px solid var(--hairline);
+  background: var(--white);
+  font-size: 18px;
 }
 
 .name-emoji {

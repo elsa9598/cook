@@ -41,6 +41,7 @@ const ko = {
   photoSearch: "사진으로 구글 검색",
   photoClear: "사진 지우기",
   photoSearchTitle: "이 식재료가 뭔지 알려줘",
+  nameSearch: "이름으로 구글 검색",
   photoDetected: "사진 후보",
   analyzePhoto: "사진 설명 채우기",
   save: "저장",
@@ -174,6 +175,7 @@ const en = {
   photoSearch: "Search photo on Google",
   photoClear: "Remove photo",
   photoSearchTitle: "What ingredient is this?",
+  nameSearch: "Search name on Google",
   photoDetected: "Photo guess",
   analyzePhoto: "Fill photo notes",
   save: "Save",
@@ -1159,6 +1161,7 @@ function renderAddForm(type) {
           <div class="name-row">
             <span class="name-emoji" data-name-emoji="${type}">${storageTypes[type].emoji}</span>
             <input name="name" required placeholder="${t("searchNamePlaceholder")}" list="ing-list-${type}" autocomplete="off" data-name-input="${type}" />
+            <button type="button" class="name-search-btn" data-name-search title="${t("nameSearch")}" aria-label="${t("nameSearch")}">🔎</button>
           </div>
           <datalist id="ing-list-${type}">
             ${INGREDIENT_DB[type].map((it) => `<option value="${escapeAttr(it.name)}">${escapeAttr(displayCategory(it.category))}</option>`).join("")}
@@ -1615,6 +1618,15 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-name-input]").forEach((input) => {
     input.addEventListener("input", () => applyNameSuggestion(input));
+  });
+  document.querySelectorAll("[data-name-search]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const form = button.closest("form");
+      const name = String(form?.querySelector("[name='name']")?.value || "").trim();
+      if (!name) return;
+      const q = encodeURIComponent(state.lang === "ko" ? `${name} 요리 활용법 맛 보관법` : `${name} cooking uses taste storage`);
+      window.open(`https://www.google.com/search?q=${q}`, "_blank", "noopener,noreferrer");
+    });
   });
   // Open the in-app web search panel (data-web-search = "type:id").
   document.querySelectorAll("[data-web-search]").forEach((button) => {
