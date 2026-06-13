@@ -1704,11 +1704,17 @@ async function handleAddItem(event) {
   pendingPhoto = null;
   saveState();
   render();
-  // The new item lands below the tall add form — scroll it into view so the
-  // save visibly reflects right away instead of seeming to do nothing.
-  requestAnimationFrame(() => {
-    document.querySelector(".ingredient-grid .ingredient-icon")?.scrollIntoView({ behavior: "smooth", block: "center" });
-  });
+  // The new item lands below the tall add form — jump the grid to the top of
+  // the view so the save visibly reflects right away (instant + after layout
+  // for reliability across browsers/PWAs).
+  setTimeout(() => {
+    const content = document.querySelector(".content");
+    const grid = document.querySelector(".ingredient-grid");
+    if (content && grid) {
+      const top = grid.getBoundingClientRect().top - content.getBoundingClientRect().top + content.scrollTop - 8;
+      content.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+    }
+  }, 60);
 }
 
 async function handleAuth(event) {
