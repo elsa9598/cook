@@ -1,4 +1,5 @@
 import { INGREDIENT_DB, CATEGORY_EN, emojiFor, ingredientLookup, autoCategory, EN_NAME } from "./ingredients.js";
+import { DISHES } from "./recipes.js";
 
 const STORAGE_KEY = "yorijambaengi-state-v2";
 const POPUP_KEY = "yorijambaengi-free-popup-date";
@@ -647,6 +648,8 @@ let selectedCookMode = "fridgeClean";
 let servings = 1;
 let recipe = null;
 let modal = null;
+// Rotates each "추천 받기" so a mode cycles through its dishes instead of repeating one.
+let dishCursor = {};
 
 normalizeState();
 registerServiceWorker();
@@ -1578,13 +1581,17 @@ function deleteInventory(encoded) {
 
 async function makeRecipe() {
   const profile = recipeProfiles[selectedCookMode] || recipeProfiles.fridgeClean;
-  const available = [
+  const allItems = [
     ...state.inventory.fridge,
     ...state.inventory.freezer,
     ...state.inventory.sauce,
     ...state.inventory.room,
-  ].filter((x) => Number(x.amount) > 0);
+  ];
+  const available = allItems.filter((x) => Number(x.amount) > 0);
   const names = available.map((x) => x.name);
+  // Owned = anything in the pantry, even if the quantity is low/zero — so a
+  // staple you already have never gets pushed back onto the shopping list.
+  const ownedNames = allItems.map((x) => x.name);
   const allowedItems = available.filter((entry) => profile.allow.includes(entry.name));
   const pickedItems = pickRecipeItems(allowedItems, profile);
   const pickedNames = pickedItems.map((x) => x.name);
@@ -1592,13 +1599,14 @@ async function makeRecipe() {
   const displayMain = pickedNames.map(displayName);
   const englishMain = pickedNames.map((name) => ingredientTranslations[name] || name);
   const measuredIngredients = buildMeasuredIngredients(selectedCookMode, profile, pickedNames, servings);
-  const modeName = state.lang === "ko" ? profile.koTitle : profile.enTitle;
-  const englishModeName = profile.enTitle || mode?.[2] || "easy home cooking";
+  const dish = pickDish(selectedCookMode);
+  const modeName = dish ? (state.lang === "ko" ? dish.ko : dish.en) : (state.lang === "ko" ? profile.koTitle : profile.enTitle);
+  const englishModeName = dish ? dish.en : (profile.enTitle || mode?.[2] || "easy home cooking");
   const title = state.lang === "ko"
     ? `${modeName} ${servings}${t("servingsSuffix")}`
     : `${modeName} for ${servings} ${t("servingsSuffix")}`;
   const englishTitle = `${englishModeName} for ${servings} servings`;
-  const missingNames = (profile.required || []).filter((need) => !names.some((name) => ingredientMatchesNeed(name, need)));
+  const missingNames = (profile.required || []).filter((need) => !ownedNames.some((name) => ingredientMatchesNeed(name, need)));
   const shopping = missingNames.map((name) => formatShoppingNeed(name, measuredIngredients));
   const mainText = displayMain.join(", ") || t("basicIngredients");
   const reference = await fetchRecipeReference(profile, englishMain);
@@ -1617,7 +1625,7 @@ async function makeRecipe() {
       amount: state.lang === "ko" ? entry.ko : entry.en,
     })),
     shopping,
-    steps: buildRecipeSteps(selectedCookMode, profile, measuredIngredients),
+    steps: dish ? buildVariantSteps(dish, measuredIngredients) : buildRecipeSteps(selectedCookMode, profile, measuredIngredients),
     visual: visualText,
     reference,
     sourceLabel,
@@ -1972,8 +1980,32 @@ function shakes(amount, serving) {
 }
 
 function ingredientMatchesNeed(name, need) {
-  const en = ingredientTranslations[name] || "";
-  return need.includes(name) || (en && need.toLowerCase().includes(en.toLowerCase()));
+  const en = (ingredientTranslations[name] || EN_NAME[name] || "").toLowerCase();
+  // Match both directions so variants count: "백설탕"/"맛소금" satisfy "설탕"/"소금".
+  return need.includes(name) || name.includes(need) || (en && need.toLowerCase().includes(en));
+}
+
+// Pick the next dish for a mode and advance the cursor so repeated taps cycle.
+function pickDish(mode) {
+  const dishes = DISHES[mode];
+  if (!dishes || !dishes.length) return null;
+  const index = (dishCursor[mode] || 0) % dishes.length;
+  dishCursor[mode] = index + 1;
+  return dishes[index];
+}
+
+function buildVariantSteps(dish, measuredIngredients) {
+  const measuredKo = formatMeasuredList(measuredIngredients, "ko");
+  const measuredEn = formatMeasuredList(measuredIngredients, "en");
+  const titlesKo = [t("stepPrepTitle"), t("stepHeatTitle"), t("stepSeasonTitle"), t("stepPlateTitle")];
+  const titlesEn = ["Measure", "Cook", "Check", "Plate"];
+  const steps = state.lang === "ko" ? dish.koSteps : dish.enSteps;
+  return steps.map((text, index) => ({
+    title: state.lang === "ko" ? titlesKo[index] : titlesEn[index],
+    text: index === 0 && measuredKo
+      ? `${text} ${state.lang === "ko" ? `계량: ${measuredKo}.` : `Measurements: ${measuredEn}.`}`
+      : text,
+  }));
 }
 
 function buildRecipeSteps(mode, profile, measuredIngredients) {
