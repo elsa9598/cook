@@ -804,6 +804,85 @@ button {
   resize: vertical;
 }
 
+/* Recipe carousel (swipe to browse a mode's dishes) */
+.carousel {
+  display: grid;
+  grid-template-columns: 40px 1fr 40px;
+  align-items: center;
+  gap: 6px;
+}
+
+.carousel-arrow {
+  border: 1px solid var(--hairline);
+  background: var(--white);
+  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.carousel-stage {
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.carousel-card {
+  min-height: 220px;
+  background: var(--brand-peach);
+  border-radius: 24px;
+  padding: 28px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.carousel-emoji {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+}
+
+.carousel-name {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  word-break: keep-all;
+}
+
+.carousel-ing {
+  margin: 0;
+  font-size: 13px;
+  color: var(--body, #3a3a3a);
+  line-height: 1.4;
+  word-break: keep-all;
+}
+
+.carousel-count {
+  text-align: center;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 12px 0 2px;
+}
+
+.carousel-hint {
+  text-align: center;
+  color: var(--soft);
+  font-size: 12px;
+  margin: 0 0 4px;
+}
+
 .recipe-hero {
   background: var(--green-house);
   color: #fff;

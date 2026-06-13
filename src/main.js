@@ -130,6 +130,11 @@ const ko = {
   backupHint: "보관함을 파일로 저장해 두면 브라우저를 비우거나 기기를 바꿔도 그대로 복원할 수 있어요.",
   backupDone: "백업 저장 완료",
   restoreDone: "복원 완료",
+  pickType: "요리 종류 고르기",
+  selectDish: "이 요리 선택",
+  swipeHint: "← → 밀어서 다른 요리 보기",
+  clearEmpty: "냉장고·냉동고에 재료를 먼저 넣어주세요.",
+  recipeCarousel: "요리 고르기",
 };
 
 const en = {
@@ -258,6 +263,11 @@ const en = {
   backupHint: "Save your storage to a file so you can restore it even if the browser is cleared or you switch devices.",
   backupDone: "Backup saved",
   restoreDone: "Restored",
+  pickType: "Pick a dish type",
+  selectDish: "Choose this dish",
+  swipeHint: "Swipe ← → to see more dishes",
+  clearEmpty: "Add fridge/freezer items first.",
+  recipeCarousel: "Choose a dish",
 };
 
 const storageTypes = {
@@ -670,6 +680,10 @@ let modal = null;
 let dishCursor = {};
 // Photo chosen in the add form, kept across re-renders so the preview survives.
 let pendingPhoto = null; // { type, file, dataUrl }
+// Recipe carousel state (swipe through a mode's dishes, then 선택).
+let recipeMode = null;
+let carouselIndex = 0;
+let clearoutOptions = [];
 
 normalizeState();
 registerServiceWorker();
@@ -929,6 +943,10 @@ function getTitles() {
   }
   if (selectedTab === "sauce") return { small: t("seasonTitle"), big: t("sauceBig") };
   if (selectedTab === "room") return { small: t("pantrySmall"), big: t("roomBig") };
+  if (selectedTab === "carousel") {
+    const m = cookModes.find(([key]) => key === recipeMode);
+    return { small: t("recipeCarousel"), big: m ? (state.lang === "ko" ? m[1] : m[2]) : t("recipeCarousel") };
+  }
   if (selectedTab === "recipe") return { small: t("recipeSmall"), big: recipe?.title || t("cookStart") };
   return { small: t("homeSmall"), big: t("homeBig") };
 }
@@ -939,6 +957,7 @@ function renderCurrentPage() {
   if (selectedTab === "cold") return renderStoragePage(selectedStorage);
   if (selectedTab === "sauce") return renderSaucePage();
   if (selectedTab === "room") return renderStoragePage("room");
+  if (selectedTab === "carousel") return renderCarousel();
   if (selectedTab === "recipe") return renderRecipePage();
   return renderHome();
 }
@@ -970,26 +989,19 @@ function renderHome() {
     </section>
     <section class="section">
       <div class="section-head">
-        <h2 class="section-title">${t("cookStart")}</h2>
-        <label class="field" style="width: 96px">
-          <span>${t("servings")}</span>
-          <input type="number" min="1" max="12" value="${servings}" data-input="servings" />
-        </label>
+        <h2 class="section-title">${t("pickType")}</h2>
       </div>
       <div class="cook-grid">
         ${cookModes
           .map(
             ([key, koName, enName, emoji]) => `
-              <button class="cook-card ${selectedCookMode === key ? "active" : ""}" data-cook="${key}">
+              <button class="cook-card" data-cook="${key}">
                 <span class="cook-emoji">${emoji}</span>
                 <strong>${state.lang === "ko" ? koName : enName}</strong>
               </button>
             `
           )
           .join("")}
-      </div>
-      <div style="margin-top: 12px">
-        <button class="pill" style="width: 100%; min-height: 46px" data-action="make-recipe">${t("makeRecipe")}</button>
       </div>
     </section>
   `;
@@ -1138,6 +1150,46 @@ function renderAddForm(type) {
 function renderSaucePage() {
   // Same grid + filter layout as the fridge/freezer/room pages.
   return renderStoragePage("sauce");
+}
+
+function renderCarousel() {
+  const mode = recipeMode;
+  const isClear = mode === "fridgeClean";
+  const list = isClear ? clearoutOptions : (DISHES[mode] || []);
+  if (!list.length) {
+    return `<section class="section"><div class="card empty">${isClear ? t("clearEmpty") : t("empty")}</div></section>`;
+  }
+  const n = list.length;
+  const idx = ((carouselIndex % n) + n) % n;
+  const dish = list[idx];
+  const name = state.lang === "ko" ? dish.ko : dish.en;
+  const ingNames = isClear ? dish.mains : dish.ing.map((i) => i[0]);
+  const emoji = emojiFor(ingNames[0] || name, "fridge");
+  const previewIng = ingNames.map(displayName).join(", ");
+  return `
+    <section class="section">
+      <div class="carousel">
+        <button class="carousel-arrow" data-carousel="prev" aria-label="prev">‹</button>
+        <div class="carousel-stage" data-carousel-stage>
+          <article class="carousel-card">
+            <span class="carousel-emoji">${emoji}</span>
+            <h3 class="carousel-name">${name}</h3>
+            <p class="carousel-ing">${previewIng}</p>
+          </article>
+        </div>
+        <button class="carousel-arrow" data-carousel="next" aria-label="next">›</button>
+      </div>
+      <p class="carousel-count">${idx + 1} / ${n}</p>
+      <p class="carousel-hint">${t("swipeHint")}</p>
+      <div class="section-head" style="margin-top:12px">
+        <label class="field" style="width: 110px">
+          <span>${t("servings")}</span>
+          <input type="number" min="1" max="12" value="${servings}" data-input="servings-carousel" />
+        </label>
+      </div>
+      <button class="pill" style="width:100%; min-height:48px" data-carousel-select="${idx}">${t("selectDish")}</button>
+    </section>
+  `;
 }
 
 function renderRecipePage() {
@@ -1447,11 +1499,30 @@ function bindEvents() {
   document.querySelectorAll("[data-cook]").forEach((button) => {
     button.addEventListener("click", () => {
       selectedCookMode = button.dataset.cook;
-      document.querySelectorAll("[data-cook]").forEach((card) => {
-        card.classList.toggle("active", card.dataset.cook === selectedCookMode);
-      });
+      openCarousel(button.dataset.cook);
     });
   });
+  document.querySelectorAll("[data-carousel]").forEach((button) => {
+    button.addEventListener("click", () => {
+      carouselIndex += button.dataset.carousel === "next" ? 1 : -1;
+      render();
+    });
+  });
+  document.querySelectorAll("[data-carousel-select]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const idx = Number(button.dataset.carouselSelect) || 0;
+      if (recipeMode === "fridgeClean") selectClearout(idx);
+      else selectDish(recipeMode, idx);
+    });
+  });
+  document.querySelectorAll("[data-input='servings-carousel']").forEach((input) => {
+    input.addEventListener("change", () => {
+      servings = Math.max(1, Number(input.value) || 1);
+      if (recipeMode === "fridgeClean") clearoutOptions = buildClearoutOptions(servings);
+      render();
+    });
+  });
+  bindCarouselSwipe();
   document.querySelectorAll("[data-form]").forEach((form) => {
     form.addEventListener("submit", handleAddItem);
   });
@@ -1555,6 +1626,22 @@ function saveSearchMemo(type, id) {
   }
 }
 
+function bindCarouselSwipe() {
+  const stage = document.querySelector("[data-carousel-stage]");
+  if (!stage) return;
+  const advance = (dx) => {
+    if (Math.abs(dx) < 40) return;
+    carouselIndex += dx < 0 ? 1 : -1; // swipe right→left = next dish
+    render();
+  };
+  let tx = null;
+  stage.addEventListener("touchstart", (e) => { tx = e.touches[0].clientX; }, { passive: true });
+  stage.addEventListener("touchend", (e) => { if (tx === null) return; const dx = e.changedTouches[0].clientX - tx; tx = null; advance(dx); }, { passive: true });
+  let mx = null;
+  stage.addEventListener("mousedown", (e) => { mx = e.clientX; });
+  stage.addEventListener("mouseup", (e) => { if (mx === null) return; const dx = e.clientX - mx; mx = null; advance(dx); });
+}
+
 // When the user picks/types an ingredient name, auto-fill category and illustration.
 function applyNameSuggestion(input) {
   const type = input.dataset.nameInput;
@@ -1621,9 +1708,9 @@ async function handleAction(event) {
     if (!canUseFeatures()) {
       modal = "signup";
     } else {
-      await makeRecipe();
-      selectedTab = "recipe";
+      openCarousel(selectedCookMode || "fridgeClean");
     }
+    return;
   }
   if (action === "copy-prompt") {
     await copyText(recipe?.prompt || "");
@@ -1893,6 +1980,128 @@ function buildClearout(servings) {
   }));
 
   return { measured, shopping, consume: names, koTitle, enTitle, steps };
+}
+
+function allInventoryNames() {
+  return ["fridge", "freezer", "sauce", "room"].flatMap((type) => state.inventory[type].map((x) => x.name));
+}
+
+function openCarousel(mode) {
+  recipeMode = mode;
+  carouselIndex = 0;
+  clearoutOptions = mode === "fridgeClean" ? buildClearoutOptions(servings) : [];
+  selectedTab = "carousel";
+  render();
+}
+
+// 냉장고 털기: up to 10 dishes from the user's actual fridge/freezer items.
+function buildClearoutOptions(count) {
+  const perishable = [...state.inventory.fridge, ...state.inventory.freezer]
+    .filter((x) => Number(x.amount) > 0)
+    .slice()
+    .sort((a, b) => clearoutPriority(a) - clearoutPriority(b));
+  if (!perishable.length) return [];
+  const sauces = state.inventory.sauce.filter((x) => Number(x.amount) > 0);
+  const seasonNames = [];
+  ["간장", "식용유", "참기름", "고추장", "굴소스", "소금", "후추", "설탕"].forEach((s) => {
+    const m = sauces.find((x) => x.name.includes(s) || s.includes(x.name));
+    if (m && seasonNames.length < 3 && !seasonNames.includes(m.name)) seasonNames.push(m.name);
+  });
+  sauces.forEach((x) => { if (seasonNames.length < 3 && !seasonNames.includes(x.name)) seasonNames.push(x.name); });
+
+  const mainsAll = perishable.slice(0, 4);
+  const opts = [];
+  CLEAROUT_STYLES.forEach((style) => opts.push(makeClearoutOption(mainsAll, seasonNames, style, count)));
+  perishable.slice(0, 5).forEach((it, i) => opts.push(makeClearoutOption([it], seasonNames, CLEAROUT_STYLES[i % CLEAROUT_STYLES.length], count)));
+
+  const seen = new Set();
+  const out = [];
+  for (const o of opts) { if (seen.has(o.ko)) continue; seen.add(o.ko); out.push(o); if (out.length >= 10) break; }
+  return out;
+}
+
+function makeClearoutOption(mains, seasonNames, style, count) {
+  const names = [...mains.map((m) => m.name), ...seasonNames];
+  const measured = names.map((n) => {
+    const a = measureIngredient(n, "fridgeClean", count);
+    return { name: n, enName: ingredientTranslations[n] || EN_NAME[n] || n, ko: a.ko, en: a.en };
+  });
+  const sauces = state.inventory.sauce.filter((x) => Number(x.amount) > 0);
+  const hasSauce = (kw) => sauces.find((x) => x.name.includes(kw) || kw.includes(x.name));
+  const shopping = ["간장", "식용유"].filter((s) => !hasSauce(s)).map((s) => {
+    const a = measureIngredient(s, "fridgeClean", count);
+    return state.lang === "ko" ? `${s} ${a.ko}` : `${ingredientTranslations[s] || s} ${a.en}`;
+  });
+  const top = mains.slice(0, 3);
+  const ko = `${top.map((m) => m.name).join(" ")} ${style.koName}`;
+  const en = `${top.map((m) => ingredientTranslations[m.name] || EN_NAME[m.name] || m.name).join(" ")} ${style.enName}`;
+  const mainsKo = mains.map((m) => displayName(m.name)).join(", ");
+  const mainsEn = mains.map((m) => ingredientTranslations[m.name] || EN_NAME[m.name] || m.name).join(", ");
+  const seasonKo = seasonNames[0] ? displayName(seasonNames[0]) : "간장";
+  const seasonEn = seasonNames[0] ? (ingredientTranslations[seasonNames[0]] || EN_NAME[seasonNames[0]] || seasonNames[0]) : "soy sauce";
+  const measureSuffix = state.lang === "ko"
+    ? ` 계량: ${formatMeasuredList(measured, "ko")}.`
+    : ` Measurements: ${formatMeasuredList(measured, "en")}.`;
+  const titlesKo = [t("stepPrepTitle"), t("stepHeatTitle"), t("stepSeasonTitle"), t("stepPlateTitle")];
+  const titlesEn = ["Measure", "Cook", "Check", "Plate"];
+  const tmpl = state.lang === "ko" ? style.ko : style.en;
+  const steps = tmpl.map((text, i) => ({
+    title: state.lang === "ko" ? titlesKo[i] : titlesEn[i],
+    text: text.replaceAll("{mains}", state.lang === "ko" ? mainsKo : mainsEn).replaceAll("{season}", state.lang === "ko" ? seasonKo : seasonEn) + (i === 0 ? measureSuffix : ""),
+  }));
+  return { ko, en, mains: mains.map((m) => m.name), measured, shopping, steps };
+}
+
+// Build the recipe object from computed parts (shared by carousel selections).
+async function assembleRecipe(profile, titleKo, titleEn, englishModeName, measured, displayMain, englishMain, shopping, steps) {
+  const title = state.lang === "ko"
+    ? `${titleKo} ${servings}${t("servingsSuffix")}`
+    : `${titleEn} for ${servings} ${t("servingsSuffix")}`;
+  const englishTitle = `${englishModeName} for ${servings} servings`;
+  const mainText = displayMain.join(", ") || t("basicIngredients");
+  const reference = await fetchRecipeReference(profile, englishMain);
+  const visual = buildVisualDescription(englishModeName, englishMain, measured, profile);
+  const visualText = state.lang === "ko" ? buildKoreanVisualDescription(displayMain, measured, profile) : visual;
+  const sourceLabel = reference ? `${t("sourceInternet")}: TheMealDB` : t("sourceLocal");
+  recipe = {
+    title,
+    summary: buildSmartSummary(mainText, reference, measured),
+    ingredients: measured.map((e) => ({ label: state.lang === "ko" ? displayName(e.name) : e.enName, amount: state.lang === "ko" ? e.ko : e.en })),
+    shopping,
+    steps,
+    visual: visualText,
+    reference,
+    sourceLabel,
+    prompt: buildFoodPrompt(englishTitle, englishMain, measured, englishModeName, visual, reference),
+  };
+}
+
+async function selectDish(mode, index) {
+  const profile = recipeProfiles[mode] || recipeProfiles.fridgeClean;
+  const dish = (DISHES[mode] || [])[index];
+  if (!dish) return;
+  const ownedNames = allInventoryNames();
+  const measured = buildDishIngredients(dish, servings);
+  const displayMain = measured.map((e) => displayName(e.name));
+  const englishMain = measured.map((e) => e.enName);
+  const shopping = measured
+    .filter((e) => !ownedNames.some((n) => ingredientMatchesNeed(n, e.name)))
+    .map((e) => (state.lang === "ko" ? `${displayName(e.name)} ${e.ko}` : `${e.enName} ${e.en}`));
+  const steps = buildVariantSteps(dish, measured);
+  await assembleRecipe(profile, dish.ko, dish.en, dish.en, measured, displayMain, englishMain, shopping, steps);
+  selectedTab = "recipe";
+  render();
+}
+
+async function selectClearout(index) {
+  const opt = clearoutOptions[index];
+  if (!opt) return;
+  const profile = recipeProfiles.fridgeClean;
+  const displayMain = opt.mains.map(displayName);
+  const englishMain = opt.mains.map((n) => ingredientTranslations[n] || EN_NAME[n] || n);
+  await assembleRecipe(profile, opt.ko, opt.en, opt.en, opt.measured, displayMain, englishMain, opt.shopping, opt.steps);
+  selectedTab = "recipe";
+  render();
 }
 
 async function makeRecipe() {
