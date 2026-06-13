@@ -41,18 +41,6 @@
     </section>
     <section class="section">
       <div class="section-head">
-        <h2 class="section-title">${N(`backupTitle`)}</h2>
-      </div>
-      <div class="grid-2">
-        <button class="ghost-pill" data-action="export-backup">⬇ ${N(`backupSave`)}</button>
-        <label class="ghost-pill backup-restore">⬆ ${N(`backupRestore`)}
-          <input type="file" accept="application/json,.json" data-import-backup />
-        </label>
-      </div>
-      <p class="photo-help">${N(`backupHint`)}</p>
-    </section>
-    <section class="section">
-      <div class="section-head">
         <h2 class="section-title">${N(`cookStart`)}</h2>
         <label class="field" style="width: 96px">
           <span>${N(`servings`)}</span>
