@@ -1698,6 +1698,11 @@ async function handleAddItem(event) {
   );
   saveState();
   render();
+  // The new item lands below the tall add form — scroll it into view so the
+  // save visibly reflects right away instead of seeming to do nothing.
+  requestAnimationFrame(() => {
+    document.querySelector(".ingredient-grid .ingredient-icon")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
 }
 
 async function handleAuth(event) {
