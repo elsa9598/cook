@@ -15,13 +15,13 @@
     </header>
   `}function F(){let e=ne();return`
     <section class="page-panel">
-      <div class="panel-row">
+      ${f===`home`?``:`<div class="panel-row">
         <div class="panel-center">
           <button class="back-button" data-action="back">${w(`back`)}</button>
           <span class="panel-dot">·</span>
           <div class="mini-title">${e.small}</div>
         </div>
-      </div>
+      </div>`}
       <h1 class="big-title">${e.big}</h1>
     </section>
   `}function ne(){return f===`home`?{small:d.user?`Premium`:w(`homeSmall`),big:d.user?w(`premiumBig`):w(`homeBig`)}:f===`cold`?{small:w(`pantrySmall`),big:w(p===`freezer`?`freezerBig`:`fridgeBig`)}:f===`sauce`?{small:w(`seasonTitle`),big:w(`sauceBig`)}:f===`room`?{small:w(`pantrySmall`),big:w(`roomBig`)}:f===`recipe`?{small:w(`recipeSmall`),big:_?.title||w(`cookStart`)}:{small:w(`homeSmall`),big:w(`homeBig`)}}function re(){return!j()&&f!==`home`?G():f===`home`?I():f===`cold`?L(p):f===`sauce`?V():f===`room`?L(`room`):f===`recipe`?H():I()}function I(){let e=!j();return`
