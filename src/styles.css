@@ -1,20 +1,31 @@
 :root {
-  --green-brand: #006241;
-  --green-accent: #00754a;
-  --green-house: #1e3932;
-  --green-uplift: #2b5148;
-  --green-light: #d4e9e2;
-  --gold: #cba258;
-  --cream: #f2f0eb;
-  --ceramic: #edebe9;
+  /* Clay design system — cream canvas, near-black ink, saturated feature colors */
+  --green-brand: #0a0a0a;   /* headlines / brand ink */
+  --green-accent: #0a0a0a;  /* primary CTA — near-black */
+  --green-house: #1a3a3a;   /* deep teal feature surface (hero, recipe hero) */
+  --green-uplift: #1a2a2a;
+  --green-light: #f0e9d4;   /* soft cream chip / emoji wells */
+  --gold: #e8b94a;          /* ochre */
+  --cream: #fffaf0;         /* canvas */
+  --ceramic: #faf5e8;       /* surface-soft */
   --white: #ffffff;
-  --ink: rgba(0, 0, 0, 0.87);
-  --soft: rgba(0, 0, 0, 0.58);
-  --danger: #c82014;
-  --shadow-card: 0 0 0.5px rgba(0, 0, 0, 0.14), 0 1px 1px rgba(0, 0, 0, 0.24);
-  --shadow-nav: 0 1px 3px rgba(0, 0, 0, 0.1), 0 2px 2px rgba(0, 0, 0, 0.06), 0 0 2px rgba(0, 0, 0, 0.07);
-  --radius-card: 12px;
-  --radius-pill: 50px;
+  --ink: #0a0a0a;
+  --soft: #6a6a6a;          /* muted */
+  --danger: #ef4444;
+  --hairline: #e5e5e5;
+  --surface-card: #f5f0e0;
+  --brand-pink: #ff4d8b;
+  --brand-teal: #1a3a3a;
+  --brand-lavender: #b8a4ed;
+  --brand-peach: #ffb084;
+  --brand-ochre: #e8b94a;
+  --brand-mint: #a4d4c5;
+  --brand-coral: #ff6b5a;
+  --shadow-card: 0 1px 2px rgba(10, 10, 10, 0.05);
+  --shadow-nav: 0 1px 0 rgba(10, 10, 10, 0.06);
+  --radius-card: 16px;
+  --radius-pill: 9999px;
+  --radius-btn: 12px;
   --top-auth-h: 58px;
   --page-panel-h: 58px;
   color: var(--ink);
@@ -73,8 +84,8 @@ button {
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  background: var(--white);
-  box-shadow: var(--shadow-nav);
+  background: var(--cream);
+  border-bottom: 1px solid var(--hairline);
 }
 
 .auth-left {
@@ -93,10 +104,11 @@ button {
 .ghost-pill,
 .dark-pill,
 .icon-pill {
-  min-height: 36px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--green-accent);
-  padding: 7px 14px;
+  min-height: 40px;
+  border-radius: var(--radius-btn);
+  border: 1px solid transparent;
+  padding: 9px 16px;
+  font-weight: 600;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
   white-space: nowrap;
 }
@@ -113,27 +125,25 @@ button {
 .pill {
   background: var(--green-accent);
   color: var(--white);
-  font-weight: 700;
 }
 
 .ghost-pill {
-  background: transparent;
+  background: var(--white);
   color: var(--ink);
-  border-color: rgba(0, 0, 0, 0.87);
-  font-weight: 700;
+  border-color: var(--hairline);
 }
 
 .dark-pill {
-  background: #000;
+  background: var(--ink);
   color: #fff;
-  border-color: #000;
-  font-weight: 700;
+  border-color: var(--ink);
 }
 
 .icon-pill {
   background: var(--white);
-  color: var(--green-accent);
-  font-weight: 800;
+  color: var(--ink);
+  border-color: var(--hairline);
+  font-weight: 700;
 }
 
 .page-panel {
@@ -191,7 +201,8 @@ button {
   color: var(--green-brand);
   font-size: clamp(21px, 6.2vw, 27px);
   line-height: 1.18;
-  font-weight: 900;
+  font-weight: 700;
+  letter-spacing: -0.03em;
   white-space: nowrap;
 }
 
@@ -206,9 +217,8 @@ button {
 .hero-band {
   background: var(--green-house);
   color: var(--white);
-  border-radius: var(--radius-card);
-  padding: 20px 18px;
-  box-shadow: var(--shadow-card);
+  border-radius: 24px;
+  padding: 24px 20px;
 }
 
 .hero-band p {
@@ -220,8 +230,10 @@ button {
 
 .hero-title {
   margin: 0;
-  font-size: clamp(22px, 6.1vw, 25px);
-  line-height: 1.2;
+  font-size: clamp(24px, 6.6vw, 28px);
+  line-height: 1.12;
+  font-weight: 700;
+  letter-spacing: -0.03em;
   word-break: keep-all;
 }
 
@@ -235,10 +247,10 @@ button {
   gap: 10px;
   align-items: center;
   margin-top: 12px;
-  padding: 12px;
+  padding: 14px 16px;
   background: var(--white);
+  border: 1px solid var(--hairline);
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
 }
 
 .trial-strip strong {
@@ -274,8 +286,8 @@ button {
 
 .card {
   background: var(--white);
+  border: 1px solid var(--hairline);
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
   padding: 16px;
 }
 
@@ -289,9 +301,8 @@ button {
 .cook-card {
   min-height: 96px;
   border: 0;
-  border-radius: var(--radius-card);
+  border-radius: 20px;
   background: var(--white);
-  box-shadow: var(--shadow-card);
   padding: 14px;
   text-align: left;
   color: var(--ink);
@@ -338,14 +349,35 @@ button {
 }
 
 .cook-card.active {
-  outline: 2px solid var(--green-accent);
-  background: var(--green-light);
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
 }
 
 .cook-card strong {
   font-size: 13px;
   word-break: keep-all;
 }
+
+/* Clay signature: saturated single-color feature cards, cycled, no repeat in a row */
+.storage-card:nth-child(1) { background: var(--brand-pink); color: #fff; }
+.storage-card:nth-child(2) { background: var(--brand-teal); color: #fff; }
+.storage-card:nth-child(3) { background: var(--brand-lavender); color: var(--ink); }
+.storage-card:nth-child(4) { background: var(--brand-peach); color: var(--ink); }
+
+.cook-card:nth-child(6n + 1) { background: var(--brand-pink); color: #fff; }
+.cook-card:nth-child(6n + 2) { background: var(--brand-teal); color: #fff; }
+.cook-card:nth-child(6n + 3) { background: var(--brand-lavender); color: var(--ink); }
+.cook-card:nth-child(6n + 4) { background: var(--brand-peach); color: var(--ink); }
+.cook-card:nth-child(6n + 5) { background: var(--brand-ochre); color: var(--ink); }
+.cook-card:nth-child(6n) { background: var(--brand-mint); color: var(--ink); }
+
+.storage-card strong,
+.cook-card strong { color: inherit; }
+
+.storage-card span { color: inherit; opacity: 0.82; }
+
+.storage-card .storage-emoji,
+.cook-card .cook-emoji { background: rgba(255, 255, 255, 0.42); }
 
 .empty {
   padding: 18px;
@@ -374,9 +406,9 @@ button {
 .field select,
 .field textarea {
   width: 100%;
-  border: 1px solid #d6dbde;
-  border-radius: 8px;
-  padding: 11px 12px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-btn);
+  padding: 11px 14px;
   background: #fff;
   color: var(--ink);
   outline: none;
@@ -385,8 +417,8 @@ button {
 .field input:focus,
 .field select:focus,
 .field textarea:focus {
-  border-color: var(--green-accent);
-  box-shadow: 0 0 0 3px rgba(0, 117, 74, 0.12);
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.08);
 }
 
 .photo-actions {
@@ -410,12 +442,12 @@ button {
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  border: 1px solid var(--green-accent);
-  border-radius: var(--radius-pill);
-  color: var(--green-accent);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-btn);
+  color: var(--ink);
   background: #fff;
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .photo-help {
@@ -515,18 +547,18 @@ button {
 }
 
 .chip {
-  border: 1px solid var(--green-accent);
+  border: 1px solid transparent;
   border-radius: var(--radius-pill);
-  background: var(--white);
-  color: var(--green-accent);
-  padding: 7px 12px;
+  background: transparent;
+  color: var(--soft);
+  padding: 7px 14px;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .chip.active {
-  background: var(--green-accent);
-  color: #fff;
+  background: var(--surface-card);
+  color: var(--ink);
 }
 
 /* Ingredient grid — see every item at a glance as illustrated icons */
@@ -542,9 +574,8 @@ button {
   align-items: center;
   gap: 4px;
   background: var(--white);
-  border: 2px solid transparent;
+  border: 2px solid var(--hairline);
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
   padding: 12px 6px 10px;
   text-align: center;
   cursor: pointer;
@@ -662,7 +693,7 @@ button {
 
 .detail-memo {
   margin-top: 14px;
-  background: var(--cream, #f7f3ec);
+  background: var(--surface-card);
   border-radius: var(--radius-card);
   padding: 12px;
 }
@@ -731,8 +762,8 @@ button {
 .recipe-hero {
   background: var(--green-house);
   color: #fff;
-  padding: 18px;
-  border-radius: var(--radius-card);
+  padding: 22px 20px;
+  border-radius: 24px;
 }
 
 .recipe-hero h2 {
@@ -781,14 +812,14 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: #f7fbf7;
-  border: 1px solid rgba(0, 111, 71, 0.18);
-  border-radius: 10px;
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
   padding: 10px 12px;
 }
 
 .measure-list strong {
-  color: var(--green-house);
+  color: var(--ink);
   font-size: 14px;
 }
 
@@ -800,18 +831,18 @@ button {
 }
 
 .shopping-list div {
-  background: #faf6ee;
-  border: 1px solid rgba(203, 162, 88, 0.45);
-  border-radius: 10px;
-  padding: 10px;
+  background: var(--white);
+  border: 1px solid var(--brand-ochre);
+  border-radius: 12px;
+  padding: 10px 12px;
   font-size: 13px;
 }
 
 .step-card {
   margin-top: 12px;
   background: #fff;
+  border: 1px solid var(--hairline);
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
   overflow: hidden;
 }
 
@@ -853,9 +884,9 @@ button {
 .copy-box {
   margin-top: 14px;
   background: #fff;
+  border: 1px solid var(--hairline);
   border-radius: var(--radius-card);
   padding: 14px;
-  box-shadow: var(--shadow-card);
 }
 
 .final-visual p {
