@@ -702,7 +702,44 @@ function normalizeState() {
   ["fridge", "freezer", "sauce", "room"].forEach((type) => {
     state.inventory[type] = Array.isArray(state.inventory[type]) ? state.inventory[type] : [];
   });
+  recoverV1Items();
   saveState();
+}
+
+// The v1→v2 storage-key change cleared old sample data — but also any items
+// users had added under v1. v1 data still lives in localStorage, so recover the
+// user-added items (everything except the old built-in sample ingredients) once.
+function recoverV1Items() {
+  try {
+    if (localStorage.getItem("yorijambaengi-v1-migrated")) return;
+    const raw = localStorage.getItem("yorijambaengi-state-v1");
+    if (!raw) { localStorage.setItem("yorijambaengi-v1-migrated", "1"); return; }
+    const oldSeeds = new Set([
+      "달걀", "대파", "두부", "양파", "당근", "애호박", "김치", "우유", "치즈", "버터",
+      "냉동 만두", "냉동밥", "냉동 대패삼겹살", "냉동 새우", "냉동 브로콜리", "냉동 블루베리",
+      "간장", "고추장", "참기름", "된장", "소금", "설탕", "후추", "식초", "고춧가루", "식용유", "굴소스", "마요네즈", "케첩",
+      "식빵", "라면", "쌀", "파스타면", "참치캔", "김", "감자", "고구마", "밀가루",
+    ]);
+    const v1 = JSON.parse(raw);
+    let recovered = 0;
+    ["fridge", "freezer", "sauce", "room"].forEach((type) => {
+      const items = (v1.inventory && Array.isArray(v1.inventory[type])) ? v1.inventory[type] : [];
+      items.forEach((it) => {
+        if (!it || !it.name || oldSeeds.has(it.name)) return;
+        if (state.inventory[type].some((x) => x.name === it.name)) return;
+        state.inventory[type].push({
+          ...it,
+          id: it.id || crypto.randomUUID(),
+          emoji: it.emoji || emojiFor(it.name, type),
+        });
+        recovered += 1;
+      });
+    });
+    localStorage.setItem("yorijambaengi-v1-migrated", "1");
+    if (recovered) console.info(`[yorijambaengi] recovered ${recovered} item(s) from v1`);
+  } catch {
+    // Recovery is best-effort; never block startup.
+  }
 }
 
 // Illustration emoji for an item: its stored emoji, else derived from the name.
@@ -1592,22 +1629,41 @@ async function makeRecipe() {
   // Owned = anything in the pantry, even if the quantity is low/zero — so a
   // staple you already have never gets pushed back onto the shopping list.
   const ownedNames = allItems.map((x) => x.name);
-  const allowedItems = available.filter((entry) => profile.allow.includes(entry.name));
-  const pickedItems = pickRecipeItems(allowedItems, profile);
-  const pickedNames = pickedItems.map((x) => x.name);
   const mode = cookModes.find(([key]) => key === selectedCookMode);
-  const displayMain = pickedNames.map(displayName);
-  const englishMain = pickedNames.map((name) => ingredientTranslations[name] || name);
-  const measuredIngredients = buildMeasuredIngredients(selectedCookMode, profile, pickedNames, servings);
   const dish = pickDish(selectedCookMode);
+  let measuredIngredients;
+  let displayMain;
+  let englishMain;
+  let shopping;
+  let pickedNames;
+  if (dish && dish.ing && dish.ing.length) {
+    // Ingredients/shopping follow the actual dish (e.g. 탕수육 → 고기·전분·소스), not the mode's generic list.
+    measuredIngredients = buildDishIngredients(dish, servings);
+    displayMain = measuredIngredients.map((entry) => displayName(entry.name));
+    englishMain = measuredIngredients.map((entry) => entry.enName);
+    shopping = measuredIngredients
+      .filter((entry) => !ownedNames.some((name) => ingredientMatchesNeed(name, entry.name)))
+      .map((entry) => (state.lang === "ko" ? `${displayName(entry.name)} ${entry.ko}` : `${entry.enName} ${entry.en}`));
+    // Consume the owned pantry items that match this dish's ingredients.
+    pickedNames = allItems
+      .filter((it) => Number(it.amount) > 0 && measuredIngredients.some((entry) => ingredientMatchesNeed(it.name, entry.name)))
+      .map((it) => it.name);
+  } else {
+    const allowedItems = available.filter((entry) => profile.allow.includes(entry.name));
+    const pickedItems = pickRecipeItems(allowedItems, profile);
+    pickedNames = pickedItems.map((x) => x.name);
+    displayMain = pickedNames.map(displayName);
+    englishMain = pickedNames.map((name) => ingredientTranslations[name] || name);
+    measuredIngredients = buildMeasuredIngredients(selectedCookMode, profile, pickedNames, servings);
+    const missingNames = (profile.required || []).filter((need) => !ownedNames.some((name) => ingredientMatchesNeed(name, need)));
+    shopping = missingNames.map((name) => formatShoppingNeed(name, measuredIngredients));
+  }
   const modeName = dish ? (state.lang === "ko" ? dish.ko : dish.en) : (state.lang === "ko" ? profile.koTitle : profile.enTitle);
   const englishModeName = dish ? dish.en : (profile.enTitle || mode?.[2] || "easy home cooking");
   const title = state.lang === "ko"
     ? `${modeName} ${servings}${t("servingsSuffix")}`
     : `${modeName} for ${servings} ${t("servingsSuffix")}`;
   const englishTitle = `${englishModeName} for ${servings} servings`;
-  const missingNames = (profile.required || []).filter((need) => !ownedNames.some((name) => ingredientMatchesNeed(name, need)));
-  const shopping = missingNames.map((name) => formatShoppingNeed(name, measuredIngredients));
   const mainText = displayMain.join(", ") || t("basicIngredients");
   const reference = await fetchRecipeReference(profile, englishMain);
   const visual = buildVisualDescription(englishModeName, englishMain, measuredIngredients, profile);
@@ -1992,6 +2048,34 @@ function pickDish(mode) {
   const index = (dishCursor[mode] || 0) % dishes.length;
   dishCursor[mode] = index + 1;
   return dishes[index];
+}
+
+// Turn a dish's ingredient list into measured entries, scaled by servings.
+function buildDishIngredients(dish, servings) {
+  return (dish.ing || []).map(([ko, en, amt]) => {
+    const scaledKo = scaleAmt(String(amt || ""), servings);
+    return { name: ko, enName: en, ko: scaledKo, en: koAmtToEn(scaledKo) };
+  });
+}
+
+function scaleAmt(text, servings) {
+  const n = Math.max(1, Number(servings) || 1);
+  if (n === 1) return text;
+  return text.replace(/(\d+(?:\.\d+)?)/, (m) => {
+    const v = Math.round(parseFloat(m) * n * 10) / 10;
+    return String(v);
+  });
+}
+
+function koAmtToEn(text) {
+  if (text.includes("한 꼬집")) return "a pinch";
+  if (text.includes("약간")) return "a little";
+  if (text.includes("적당량")) return "as needed";
+  const units = [["작은술", " tsp"], ["스푼", " tbsp"], ["컵", " cup"], ["공기", " bowl"], ["그릇", " bowl"], ["마리", " pcs"], ["개", " pcs"], ["알", " pcs"], ["장", " slices"], ["모", " block"], ["톨", " cloves"], ["줌", " handful"], ["봉지", " pack"], ["캔", " can"], ["대", " stalk"], ["단", " bunch"]];
+  for (const [ko, en] of units) {
+    if (text.includes(ko)) return text.replace(ko, en).trim();
+  }
+  return text.trim();
 }
 
 function buildVariantSteps(dish, measuredIngredients) {
