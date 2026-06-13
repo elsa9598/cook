@@ -715,7 +715,27 @@ function normalizeState() {
     state.inventory[type] = Array.isArray(state.inventory[type]) ? state.inventory[type] : [];
   });
   recoverV1Items();
+  clearAutoMemos();
   saveState();
+}
+
+// One-time cleanup: blank out the old auto-generated boilerplate memos (the
+// identical "볶음·조림·덮밥… 맞추세요" seasoning text and photo-import notes) so
+// they don't crowd out memos the user pastes from web search.
+function clearAutoMemos() {
+  try {
+    if (localStorage.getItem("yorijambaengi-automemo-v1")) return;
+    const markers = ["무료 검색 키워드", "Free search keyword", "무료 검색에서", "Use free search", "조금씩 테스트하며", "Try a small amount"];
+    ["fridge", "freezer", "sauce", "room"].forEach((type) => {
+      (state.inventory[type] || []).forEach((e) => {
+        if (!e || !e.memo) return;
+        if (markers.some((m) => e.memo.includes(m)) || e.memo === describeSeasoning(e.name)) e.memo = "";
+      });
+    });
+    localStorage.setItem("yorijambaengi-automemo-v1", "1");
+  } catch {
+    // best-effort cleanup
+  }
 }
 
 // The v1→v2 storage-key change cleared old sample data — but also any items
@@ -790,9 +810,10 @@ function displayCategory(category) {
   return activeLang() === "ko" ? category : categoryTranslations[category] || CATEGORY_EN[category] || category;
 }
 
-function displayMemo(entry, type) {
-  if (type === "sauce" && knownSeasoningKey(entry.name)) return describeSeasoning(entry.name);
-  return entry.memo;
+function displayMemo(entry) {
+  // Only ever show what's actually saved (e.g. pasted from web search) — no
+  // auto-generated boilerplate.
+  return entry.memo || "";
 }
 
 function isTrialExpired() {
@@ -1463,19 +1484,17 @@ function bindEvents() {
   document.querySelectorAll("[data-search-save]").forEach((button) => {
     button.addEventListener("click", () => {
       const [type, id] = button.dataset.searchSave.split(":");
-      const entry = state.inventory[type]?.find((x) => x.id === id);
-      const memoValue = document.querySelector("[data-search-memo]")?.value || "";
-      if (entry) {
-        entry.memo = memoValue.trim();
-        saveState();
-      }
+      saveSearchMemo(type, id);
       modal = `detail:${type}:${id}`;
       render();
     });
   });
+  // Closing (X / 닫기) also keeps whatever was pasted into the memo box.
   document.querySelectorAll("[data-websearch-close]").forEach((button) => {
     button.addEventListener("click", () => {
-      modal = `detail:${button.dataset.websearchClose}`;
+      const [type, id] = button.dataset.websearchClose.split(":");
+      saveSearchMemo(type, id);
+      modal = `detail:${type}:${id}`;
       render();
     });
   });
@@ -1484,6 +1503,16 @@ function bindEvents() {
       servings = Math.max(1, Number(input.value) || 1);
     });
   });
+}
+
+// Persist whatever is currently in the web-search memo box to the item.
+function saveSearchMemo(type, id) {
+  const entry = state.inventory[type]?.find((x) => x.id === id);
+  const ta = document.querySelector("[data-search-memo]");
+  if (entry && ta) {
+    entry.memo = ta.value.trim();
+    saveState();
+  }
 }
 
 // When the user picks/types an ingredient name, auto-fill category and illustration.
@@ -1698,9 +1727,6 @@ function handleEditItem(event) {
   entry.unit = String(data.get("unit") || "").trim() || entry.unit;
   entry.category = String(data.get("category") || "").trim();
   entry.memo = String(data.get("memo") || "").trim();
-  if (type === "sauce" && !entry.memo) {
-    entry.memo = describeSeasoning(entry.name);
-  }
   saveState();
   modal = null;
   render();
@@ -1976,17 +2002,9 @@ function buildSavedItemInfo(name, type, fallbackMemo = "") {
   const key = knownItemKey(name) || name;
   if (type === "sauce") {
     const info = enrichSeasoning(key, fallbackMemo);
-    return {
-      category: info.category,
-      memo: fallbackMemo || formatAutoMemo(key, {
-        tasteKo: seasoningTasteKo(key),
-        tasteEn: seasoningTasteEn(key),
-        usageKo: info.usage,
-        usageEn: info.usage,
-        tipKo: info.tip,
-        tipEn: info.tip,
-      }),
-    };
+    // No auto memo for seasonings — they start blank so the user fills them
+    // from web search instead of every sauce sharing the same boilerplate.
+    return { category: info.category, memo: fallbackMemo || "" };
   }
   const info = ingredientKnowledge[key];
   if (info) {

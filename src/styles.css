@@ -776,6 +776,13 @@ button {
   padding: 10px 4px;
 }
 
+.websearch-modal textarea[data-search-memo] {
+  min-height: 120px;
+  max-height: 42vh;
+  overflow-y: auto;
+  resize: vertical;
+}
+
 .recipe-hero {
   background: var(--green-house);
   color: #fff;
