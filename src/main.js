@@ -1792,7 +1792,9 @@ function exportBackup() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `yorijambaengi-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  // Date + time so each backup is a distinct file (no overwrite / "download again" prompt).
+  const ts = new Date().toISOString().slice(0, 19).replace("T", "_").replaceAll(":", "-");
+  a.download = `yorijambaengi-backup-${ts}.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();
