@@ -97,6 +97,10 @@ const ko = {
   stepPlateText: "마지막에 참기름이나 후추처럼 향이 나는 재료를 조금 넣고 따뜻할 때 그릇에 담아요.",
   finalVisual: "완성 비주얼",
   finalVisualText: "따뜻한 접시에 윤기 나는 재료가 보기 좋게 담기고, 주재료의 색과 김이 살아 있는 집밥 비주얼로 완성돼요.",
+  smartChef: "똑똑한 요리사",
+  sourceInternet: "무료 레시피 DB 참고",
+  sourceLocal: "로컬 셰프 규칙",
+  referenceRecipe: "참고 요리",
 };
 
 const en = {
@@ -195,6 +199,10 @@ const en = {
   stepPlateText: "Add fragrant ingredients like sesame oil or pepper at the end, then plate while warm.",
   finalVisual: "Final visual",
   finalVisualText: "The finished dish looks glossy and hearty on a warm ceramic plate, with the main ingredients clearly visible and a fresh home-cooked feel.",
+  smartChef: "Smart chef",
+  sourceInternet: "Free recipe DB reference",
+  sourceLocal: "Local chef rules",
+  referenceRecipe: "Reference recipe",
 };
 
 const storageTypes = {
@@ -358,6 +366,99 @@ const categoryTranslations = {
   면: "Noodles",
   유제품: "Dairy",
   기본: "Basic",
+};
+
+const recipeProfiles = {
+  fridgeClean: {
+    koTitle: "냉장고 털이 볶음",
+    enTitle: "fridge clean-out stir-fry",
+    searchTerms: ["stir fry", "fried rice", "omelette"],
+    allow: ["달걀", "대파", "두부", "양파", "당근", "애호박", "김치", "냉동 만두", "냉동밥", "간장", "고추장", "참기름", "소금", "후추", "식용유", "밥"],
+    required: ["달걀", "대파", "간장", "식용유"],
+    methodKo: ["재료를 한입 크기로 썰고 물기 많은 재료는 따로 둬요.", "팬에 식용유를 두르고 대파를 먼저 볶아 향을 내요.", "단단한 재료, 부드러운 재료 순서로 넣고 간장으로 간을 맞춰요.", "마지막에 참기름이나 후추를 넣고 따뜻하게 담아요."],
+    methodEn: ["Cut everything into bite-size pieces and keep watery ingredients aside.", "Heat oil and stir-fry green onion first for aroma.", "Add firm ingredients, then tender ones, and season with soy sauce.", "Finish with sesame oil or pepper and plate while warm."],
+  },
+  snack: {
+    koTitle: "초간단 토스트 간식",
+    enTitle: "quick toasted snack",
+    searchTerms: ["sandwich", "toast", "omelette"],
+    allow: ["식빵", "달걀", "치즈", "버터", "마요네즈", "케첩", "참치캔", "감자", "고구마", "우유", "설탕"],
+    required: ["식빵", "치즈", "버터"],
+    methodKo: ["식빵에 버터를 얇게 바르고 치즈나 달걀을 준비해요.", "팬을 약불로 달군 뒤 빵을 노릇하게 구워요.", "속재료를 넣고 반으로 접거나 한 장 더 덮어 따뜻하게 눌러요.", "먹기 좋은 크기로 자르고 소스를 조금 곁들여요."],
+    methodEn: ["Spread a thin layer of butter on bread and prepare cheese or egg.", "Toast the bread gently over low heat until golden.", "Add the filling and fold or press with another slice.", "Cut into easy pieces and add a small sauce accent."],
+  },
+  dessert: {
+    koTitle: "우유 달걀 팬 디저트",
+    enTitle: "milk and egg pan dessert",
+    searchTerms: ["pancake", "dessert", "cake"],
+    allow: ["우유", "달걀", "설탕", "버터", "식빵", "밀가루", "고구마", "냉동 블루베리"],
+    required: ["우유", "설탕", "달걀"],
+    methodKo: ["우유, 달걀, 설탕을 부드럽게 섞어 달콤한 베이스를 만들어요.", "식빵이나 고구마처럼 단맛과 어울리는 재료만 넣어요.", "약불에서 천천히 익혀 겉은 촉촉하고 가장자리는 살짝 노릇하게 만들어요.", "블루베리나 설탕을 살짝 올려 디저트처럼 마무리해요."],
+    methodEn: ["Whisk milk, egg, and sugar into a soft sweet base.", "Use dessert-friendly ingredients like bread or sweet potato only.", "Cook slowly over low heat until moist with lightly golden edges.", "Finish with blueberries or a light dusting of sugar."],
+  },
+  bread: {
+    koTitle: "초보 팬브레드",
+    enTitle: "beginner pan bread",
+    searchTerms: ["bread", "pancake", "scone"],
+    allow: ["밀가루", "우유", "버터", "설탕", "소금", "달걀", "식빵", "치즈"],
+    required: ["밀가루", "우유", "버터", "설탕"],
+    methodKo: ["밀가루, 우유, 설탕, 소금을 섞어 되직한 반죽을 만들어요.", "버터를 조금 넣어 반죽 표면이 부드러워질 때까지 섞어요.", "약불 팬에 반죽을 올리고 뚜껑을 덮어 천천히 익혀요.", "겉이 노릇하고 속이 촉촉해지면 버터 향이 나게 마무리해요."],
+    methodEn: ["Mix flour, milk, sugar, and salt into a thick batter.", "Fold in a little butter until the surface looks smooth.", "Cook the batter slowly in a covered pan over low heat.", "Finish when the outside is golden and the inside stays soft."],
+  },
+  party: {
+    koTitle: "파티 한입 플래터",
+    enTitle: "party bite platter",
+    searchTerms: ["canape", "starter", "shrimp"],
+    allow: ["치즈", "식빵", "참치캔", "냉동 새우", "냉동 브로콜리", "감자", "마요네즈", "케첩", "후추", "식용유"],
+    required: ["치즈", "식빵", "마요네즈"],
+    methodKo: ["빵, 치즈, 단백질 재료를 한입 크기로 준비해요.", "새우나 감자는 먼저 익히고 물기를 줄여요.", "마요네즈나 케첩으로 작은 소스 포인트를 만들어요.", "색이 다른 재료가 번갈아 보이게 접시에 담아요."],
+    methodEn: ["Prepare bread, cheese, and protein ingredients in bite-size pieces.", "Cook shrimp or potatoes first and reduce moisture.", "Add small accents of mayonnaise or ketchup.", "Arrange contrasting colors across the plate."],
+  },
+  korean: {
+    koTitle: "집밥 한식 볶음",
+    enTitle: "Korean home-style stir-fry",
+    searchTerms: ["Bibimbap", "Kimchi", "rice"],
+    allow: ["밥", "쌀", "김치", "두부", "대파", "양파", "달걀", "냉동 대패삼겹살", "간장", "고추장", "된장", "참기름", "고춧가루", "소금"],
+    required: ["쌀", "김치", "참기름"],
+    methodKo: ["밥이나 두부를 중심으로 김치와 대파를 준비해요.", "팬에 대파를 볶은 뒤 김치를 넣어 신맛을 부드럽게 만들어요.", "간장이나 고추장으로 간을 맞추고 주재료를 넣어 볶아요.", "마지막에 참기름을 둘러 한식 집밥 향을 살려요."],
+    methodEn: ["Prepare rice or tofu with kimchi and green onion.", "Stir-fry green onion first, then kimchi to soften the acidity.", "Season with soy sauce or gochujang and add the main ingredient.", "Finish with sesame oil for a Korean home-cooked aroma."],
+  },
+  japanese: {
+    koTitle: "일식풍 달걀 덮밥",
+    enTitle: "Japanese-style egg rice bowl",
+    searchTerms: ["Japanese", "Teriyaki", "rice bowl"],
+    allow: ["밥", "쌀", "달걀", "양파", "대파", "두부", "간장", "설탕", "식초", "냉동 새우", "김"],
+    required: ["쌀", "달걀", "간장"],
+    methodKo: ["밥 위에 올릴 달걀과 양파를 준비해요.", "간장과 설탕을 아주 조금 넣어 짭조름한 소스를 만들어요.", "양파를 먼저 익힌 뒤 달걀을 부드럽게 풀어 넣어요.", "밥 위에 올리고 김이나 대파를 살짝 더해요."],
+    methodEn: ["Prepare egg and onion for a rice bowl topping.", "Make a light savory sauce with soy sauce and a little sugar.", "Cook onion first, then softly set the egg.", "Spoon over rice and finish with seaweed or green onion."],
+  },
+  chinese: {
+    koTitle: "중식풍 대파 볶음",
+    enTitle: "Chinese-style scallion stir-fry",
+    searchTerms: ["Chinese", "fried rice", "stir fry"],
+    allow: ["대파", "양파", "당근", "냉동 새우", "달걀", "밥", "냉동밥", "간장", "굴소스", "식용유", "후추"],
+    required: ["대파", "간장", "굴소스"],
+    methodKo: ["대파와 양파를 넉넉히 썰어 향을 준비해요.", "식용유를 두른 팬에서 대파를 먼저 볶아요.", "밥이나 새우, 달걀을 넣고 센 불 느낌으로 빠르게 볶아요.", "간장과 굴소스를 조금 넣어 윤기 있게 마무리해요."],
+    methodEn: ["Slice plenty of scallion and onion for aroma.", "Stir-fry scallion first in hot oil.", "Add rice, shrimp, or egg and toss quickly.", "Finish glossy with soy sauce and oyster sauce."],
+  },
+  meat: {
+    koTitle: "기본 고기 굽기",
+    enTitle: "simple grilled meat",
+    searchTerms: ["grilled", "pork", "beef"],
+    allow: ["냉동 대패삼겹살", "양파", "대파", "마늘", "소금", "후추", "식용유", "간장", "참기름", "김치"],
+    required: ["냉동 대패삼겹살", "소금", "후추"],
+    methodKo: ["고기는 키친타월로 물기를 줄이고 소금, 후추로 밑간해요.", "팬을 충분히 달군 뒤 고기를 펼쳐 올려요.", "한쪽 면이 노릇해지면 뒤집고 양파나 대파를 곁들여요.", "기름을 살짝 빼고 따뜻한 접시에 담아요."],
+    methodEn: ["Pat the meat dry and season with salt and pepper.", "Heat the pan well and spread the meat in a single layer.", "Flip when browned and add onion or green onion.", "Drain excess fat slightly and plate while hot."],
+  },
+  quick: {
+    koTitle: "초간단 달걀밥",
+    enTitle: "quick egg rice",
+    searchTerms: ["egg", "rice", "omelette"],
+    allow: ["밥", "냉동밥", "달걀", "간장", "참기름", "김", "대파", "후추"],
+    required: ["쌀", "달걀", "간장"],
+    methodKo: ["밥을 따뜻하게 데우고 달걀을 준비해요.", "달걀은 반숙이나 스크램블로 빠르게 익혀요.", "밥에 간장과 참기름을 조금 넣고 섞어요.", "달걀과 김을 올려 간단한 한 그릇으로 마무리해요."],
+    methodEn: ["Warm the rice and prepare an egg.", "Cook the egg quickly as soft scramble or sunny-side-up.", "Mix rice with a little soy sauce and sesame oil.", "Top with egg and seaweed for a simple bowl."],
+  },
 };
 
 const state = loadState();
@@ -775,6 +876,11 @@ function renderRecipePage() {
     <section class="recipe-hero">
       <h2>${recipe.title}</h2>
       <p>${recipe.summary}</p>
+      <div class="chef-source">
+        <strong>${t("smartChef")}</strong>
+        <span>${recipe.sourceLabel}</span>
+        ${recipe.reference?.name ? `<small>${t("referenceRecipe")}: ${recipe.reference.name}</small>` : ""}
+      </div>
     </section>
     <section class="section card">
       <h2 class="section-title">${t("shopping")}</h2>
@@ -1080,7 +1186,7 @@ async function handleAction(event) {
     if (!canUseFeatures()) {
       modal = "signup";
     } else {
-      makeRecipe();
+      await makeRecipe();
       selectedTab = "recipe";
     }
   }
@@ -1167,7 +1273,8 @@ function deleteInventory(encoded) {
   render();
 }
 
-function makeRecipe() {
+async function makeRecipe() {
+  const profile = recipeProfiles[selectedCookMode] || recipeProfiles.fridgeClean;
   const available = [
     ...state.inventory.fridge,
     ...state.inventory.freezer,
@@ -1175,81 +1282,87 @@ function makeRecipe() {
     ...state.inventory.room,
   ].filter((x) => Number(x.amount) > 0);
   const names = available.map((x) => x.name);
-  const displayNames = available.map((x) => displayName(x.name));
+  const allowedItems = available.filter((entry) => profile.allow.includes(entry.name));
+  const pickedItems = pickRecipeItems(allowedItems, profile);
+  const pickedNames = pickedItems.map((x) => x.name);
   const mode = cookModes.find(([key]) => key === selectedCookMode);
-  const main = names.slice(0, 5);
-  const displayMain = displayNames.slice(0, 5);
-  const englishMain = main.map((name) => ingredientTranslations[name] || name);
-  const modeName = mode ? (state.lang === "ko" ? mode[1] : mode[2]) : t("recipeFallback");
-  const englishModeName = mode?.[2] || "easy home cooking";
+  const displayMain = pickedNames.map(displayName);
+  const englishMain = pickedNames.map((name) => ingredientTranslations[name] || name);
+  const modeName = state.lang === "ko" ? profile.koTitle : profile.enTitle;
+  const englishModeName = profile.enTitle || mode?.[2] || "easy home cooking";
   const title = state.lang === "ko"
     ? `${modeName} ${servings}${t("servingsSuffix")}`
     : `${modeName} for ${servings} ${t("servingsSuffix")}`;
   const englishTitle = `${englishModeName} for ${servings} servings`;
   const required = requiredForMode(selectedCookMode, servings);
-  const shopping = required.filter((need) => !names.some((name) => need.includes(name) || need.includes(displayName(name))));
+  const shopping = required.filter((need) => !names.some((name) => ingredientMatchesNeed(name, need)));
   const mainText = displayMain.join(", ") || t("basicIngredients");
+  const reference = await fetchRecipeReference(profile, englishMain);
   const visual = buildVisualDescription(englishModeName, englishMain);
   const visualText = state.lang === "ko"
     ? `${displayMain.join(", ") || "집에 있는 재료"}가 한 접시에 보기 좋게 담기고, 윤기와 김이 살아 있어 완성 이미지를 만들면 따뜻한 집밥 느낌이 나요.`
     : visual;
+  const sourceLabel = reference
+    ? `${t("sourceInternet")}: TheMealDB`
+    : t("sourceLocal");
   recipe = {
     title,
-    summary: formatText(t("recipeSummary"), { items: mainText }),
+    summary: buildSmartSummary(mainText, reference),
     shopping,
-    steps: [
-      {
-        title: t("stepPrepTitle"),
-        text: formatText(t("stepPrepText"), { items: displayMain.join(", ") || t("storageIngredients"), servings }),
-      },
-      {
-        title: t("stepHeatTitle"),
-        text: t("stepHeatText"),
-      },
-      {
-        title: t("stepSeasonTitle"),
-        text: t("stepSeasonText"),
-      },
-      {
-        title: t("stepPlateTitle"),
-        text: t("stepPlateText"),
-      },
-    ],
+    steps: buildRecipeSteps(profile, displayMain),
     visual: visualText,
-    prompt: buildFoodPrompt(englishTitle, englishMain, englishModeName, visual),
+    reference,
+    sourceLabel,
+    prompt: buildFoodPrompt(englishTitle, englishMain, englishModeName, visual, reference),
   };
   consumeForRecipe();
   saveState();
 }
 
+function buildSmartSummary(mainText, reference) {
+  const base = formatText(t("recipeSummary"), { items: mainText });
+  if (!reference) return base;
+  return state.lang === "ko"
+    ? `${base} 무료 레시피 DB의 “${reference.name}”도 참고했어요.`
+    : `${base} Also checked the free recipe DB reference "${reference.name}".`;
+}
+
+function pickRecipeItems(items, profile) {
+  const picked = [];
+  profile.required.forEach((name) => {
+    const found = items.find((entry) => entry.name === name);
+    if (found && !picked.some((entry) => entry.name === found.name)) picked.push(found);
+  });
+  items.forEach((entry) => {
+    if (picked.length < 5 && !picked.some((x) => x.name === entry.name)) picked.push(entry);
+  });
+  return picked;
+}
+
+function ingredientMatchesNeed(name, need) {
+  const en = ingredientTranslations[name] || "";
+  return need.includes(name) || (en && need.toLowerCase().includes(en.toLowerCase()));
+}
+
+function buildRecipeSteps(profile, displayMain) {
+  const method = state.lang === "ko" ? profile.methodKo : profile.methodEn;
+  return method.map((text, index) => {
+    const titlesKo = [t("stepPrepTitle"), t("stepHeatTitle"), t("stepSeasonTitle"), t("stepPlateTitle")];
+    const titlesEn = ["Prep", "Cook", "Season", "Plate"];
+    return {
+      title: state.lang === "ko" ? titlesKo[index] : titlesEn[index],
+      text: index === 0 && displayMain.length
+        ? `${text} (${displayMain.join(", ")})`
+        : text,
+    };
+  });
+}
+
 function requiredForMode(mode, count) {
-  const c = Number(count) || 1;
-  const koMap = {
-    fridgeClean: [`달걀 ${c}개`, "대파 조금", "간장 1스푼"],
-    snack: [`식빵 ${c}장`, "치즈", "달걀 1개"],
-    dessert: ["우유", "설탕", "과일"],
-    bread: ["강력분", "이스트", "버터"],
-    party: ["고기", "채소", "소스"],
-    korean: ["밥", "간장", "참기름"],
-    japanese: ["우동면", "쯔유", "달걀"],
-    chinese: ["대파", "간장", "굴소스"],
-    meat: ["고기", "소금", "후추"],
-    quick: ["달걀", "밥", "간장"],
-  };
-  const enMap = {
-    fridgeClean: [`egg ${c} pcs`, "green onion", "soy sauce 1 tbsp"],
-    snack: [`bread ${c} slices`, "cheese", "egg 1 pc"],
-    dessert: ["milk", "sugar", "fruit"],
-    bread: ["bread flour", "yeast", "butter"],
-    party: ["meat", "vegetables", "sauce"],
-    korean: ["rice", "soy sauce", "sesame oil"],
-    japanese: ["udon noodles", "tsuyu", "egg"],
-    chinese: ["green onion", "soy sauce", "oyster sauce"],
-    meat: ["meat", "salt", "pepper"],
-    quick: ["egg", "rice", "soy sauce"],
-  };
-  const map = state.lang === "ko" ? koMap : enMap;
-  return map[mode] || map.fridgeClean;
+  const profile = recipeProfiles[mode] || recipeProfiles.fridgeClean;
+  return state.lang === "ko"
+    ? profile.required
+    : profile.required.map((name) => ingredientTranslations[name] || name);
 }
 
 function consumeForRecipe() {
@@ -1266,9 +1379,51 @@ function buildVisualDescription(modeName, ingredients) {
   return `The final dish should look like a ${modeName} made with ${list}: glossy, warm, generous, neatly plated, with visible textures, steam, and appetizing color contrast.`;
 }
 
-function buildFoodPrompt(title, ingredients, modeText, visualDescription) {
+async function fetchRecipeReference(profile, ingredients) {
+  const terms = [...(profile.searchTerms || []), ...ingredients].filter(Boolean);
+  for (const term of terms.slice(0, 5)) {
+    try {
+      const url = `https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(term)}`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3500);
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (!response.ok) continue;
+      const data = await response.json();
+      const meal = Array.isArray(data.meals) ? data.meals.find(Boolean) : null;
+      if (meal) return normalizeMealReference(meal);
+    } catch {
+      // Free recipe lookup is a bonus; local chef rules still work offline.
+    }
+  }
+  return null;
+}
+
+function normalizeMealReference(meal) {
+  const ingredients = [];
+  for (let i = 1; i <= 20; i += 1) {
+    const ingredient = meal[`strIngredient${i}`];
+    const measure = meal[`strMeasure${i}`];
+    if (ingredient && ingredient.trim()) {
+      ingredients.push(`${measure ? measure.trim() : ""} ${ingredient.trim()}`.trim());
+    }
+  }
+  return {
+    name: meal.strMeal,
+    area: meal.strArea,
+    category: meal.strCategory,
+    instructions: meal.strInstructions,
+    ingredients: ingredients.slice(0, 8),
+    source: meal.strSource || meal.strYoutube || "https://www.themealdb.com/",
+  };
+}
+
+function buildFoodPrompt(title, ingredients, modeText, visualDescription, reference) {
   const list = ingredients.filter(Boolean).join(", ") || "simple pantry ingredients";
-  return `Create a mouthwatering vertical smartphone food photo for "${title}". Style: ${modeText}. Main ingredients: ${list}. Visual direction: ${visualDescription} Plate the food on a warm ceramic dish, show glossy textures, gentle steam, fresh garnish, appetizing color contrast, realistic home kitchen lighting, shallow depth of field, high detail, no text, no watermark, no hands, no packaging.`;
+  const referenceLine = reference
+    ? `Free recipe reference: ${reference.name}, ${reference.area || "home cooking"} style, with cues from ${reference.ingredients.join(", ")}.`
+    : "No external recipe reference was available; use realistic beginner home-cooking presentation.";
+  return `Create a mouthwatering vertical smartphone food photo for "${title}". Style: ${modeText}. Main ingredients from the user's kitchen: ${list}. ${referenceLine} Visual direction: ${visualDescription} Plate the food on a warm ceramic dish, show glossy textures, gentle steam, fresh garnish, appetizing color contrast, realistic home kitchen lighting, shallow depth of field, high detail, no text, no watermark, no hands, no packaging.`;
 }
 
 function describeSeasoning(name) {

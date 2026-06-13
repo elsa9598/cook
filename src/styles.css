@@ -508,6 +508,27 @@ button {
   line-height: 1.5;
 }
 
+.chef-source {
+  margin-top: 12px;
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.chef-source strong {
+  color: #fff;
+  font-size: 13px;
+}
+
+.chef-source span,
+.chef-source small {
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .shopping-list {
   display: grid;
   gap: 8px;
