@@ -685,6 +685,18 @@ let recipeMode = null;
 let carouselIndex = 0;
 let clearoutOptions = [];
 
+// Always-present basic seasonings (fixed, can't be deleted). Defined before
+// normalizeState() runs so ensureStaples() can read it. Spices/sauces beyond
+// these the user adds themselves.
+const STAPLE_SAUCES = [
+  ["간장", 1, "병"], ["소금", 1, "통"], ["설탕", 1, "통"], ["맛술", 1, "병"], ["식용유", 1, "병"],
+  ["아보카도유", 1, "병"], ["올리브유", 1, "병"], ["참기름", 1, "병"], ["들기름", 1, "병"], ["고추장", 1, "통"],
+  ["된장", 1, "통"], ["쌈장", 1, "통"], ["젓갈", 1, "통"], ["참치액젓", 1, "병"], ["새우젓", 1, "통"],
+  ["멸치액젓", 1, "병"], ["까나리액젓", 1, "병"], ["매실액기스", 1, "병"], ["올리고당", 1, "병"], ["물엿", 1, "병"],
+  ["후추", 1, "통"], ["통후추", 1, "통"], ["마늘", 1, "통"], ["생강", 1, "통"], ["소고기다시다", 1, "통"],
+  ["멸치다시다", 1, "통"], ["고춧가루", 1, "통"], ["깨소금", 1, "통"],
+];
+
 normalizeState();
 registerServiceWorker();
 requestPersistentStorage();
@@ -740,6 +752,19 @@ function saveState() {
   }
 }
 
+function ensureStaples() {
+  state.inventory.sauce = state.inventory.sauce || [];
+  STAPLE_SAUCES.forEach(([name, amount, unit]) => {
+    const existing = state.inventory.sauce.find((x) => x.name === name);
+    if (existing) {
+      existing.staple = true;
+      if (!existing.category) existing.category = "기본양념";
+    } else {
+      state.inventory.sauce.push({ ...item(name, amount, unit, "기본양념", "", null, emojiFor(name, "sauce")), staple: true });
+    }
+  });
+}
+
 function normalizeState() {
   state.inventory = state.inventory || {};
   ["fridge", "freezer", "sauce", "room"].forEach((type) => {
@@ -748,6 +773,7 @@ function normalizeState() {
   recoverV1Items();
   clearAutoMemos();
   trimHugePhotos();
+  ensureStaples();
   saveState();
 }
 
@@ -1391,10 +1417,10 @@ function renderDetailModal(type, id) {
           <p>${memo ? escapeHtml(memo).replaceAll("\n", "<br>") : t("noMemo")}</p>
         </div>
         <button class="ghost-pill detail-search" data-web-search="${type}:${id}">🔎 ${t("searchWeb")}</button>
-        <div class="detail-actions">
+        <div class="detail-actions ${entry.staple ? "two" : ""}">
           <button class="tiny-button" data-use="${type}:${id}">${t("use")}</button>
           <button class="tiny-button" data-edit="${type}:${id}">${t("edit")}</button>
-          <button class="tiny-button delete-button" data-delete="${type}:${id}">${t("delete")}</button>
+          ${entry.staple ? "" : `<button class="tiny-button delete-button" data-delete="${type}:${id}">${t("delete")}</button>`}
         </div>
         <button class="pill detail-confirm" data-action="close-modal">${t("confirm")}</button>
       </article>
@@ -1896,6 +1922,8 @@ function useInventory(encoded) {
 
 function deleteInventory(encoded) {
   const [type, id] = encoded.split(":");
+  const entry = state.inventory[type].find((x) => x.id === id);
+  if (entry && entry.staple) return; // basic seasonings are fixed
   state.inventory[type] = state.inventory[type].filter((x) => x.id !== id);
   saveState();
   render();
