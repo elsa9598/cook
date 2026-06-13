@@ -1792,9 +1792,9 @@ function exportBackup() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  // Date + time so each backup is a distinct file (no overwrite / "download again" prompt).
-  const ts = new Date().toISOString().slice(0, 19).replace("T", "_").replaceAll(":", "-");
-  a.download = `yorijambaengi-backup-${ts}.json`;
+  // Always the same name = one backup file (re-downloading replaces it), so the
+  // backups don't pile up. The single file always holds the whole pantry.
+  a.download = "yorijambaengi-보관함백업.json";
   document.body.appendChild(a);
   a.click();
   a.remove();
