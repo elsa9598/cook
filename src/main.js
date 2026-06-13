@@ -714,7 +714,15 @@ function loadState() {
 }
 
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    return true;
+  } catch (e) {
+    // Quota exceeded (e.g. too many photos) or private mode — don't let it
+    // break the UI flow (modals still close, app keeps running).
+    console.warn("saveState failed", e);
+    return false;
+  }
 }
 
 function normalizeState() {
@@ -724,7 +732,29 @@ function normalizeState() {
   });
   recoverV1Items();
   clearAutoMemos();
+  trimHugePhotos();
   saveState();
+}
+
+// One-time: drop oversized original photos saved before thumbnailing, which
+// had pushed localStorage past its quota and caused saves to silently fail.
+function trimHugePhotos() {
+  try {
+    if (localStorage.getItem("yorijambaengi-phototrim-v1")) return;
+    let changed = false;
+    ["fridge", "freezer", "sauce", "room"].forEach((type) => {
+      (state.inventory[type] || []).forEach((e) => {
+        if (e && typeof e.photo === "string" && e.photo.length > 100000) {
+          e.photo = null;
+          changed = true;
+        }
+      });
+    });
+    if (changed) saveState();
+    localStorage.setItem("yorijambaengi-phototrim-v1", "1");
+  } catch {
+    // best-effort
+  }
 }
 
 // One-time cleanup: blank out the old auto-generated boilerplate memos (the
@@ -1656,7 +1686,8 @@ async function handlePhotoPick(input) {
   const type = input.dataset.photoInput;
   const file = input.files?.[0];
   if (!file) return;
-  const dataUrl = await fileToDataUrl(file);
+  // Store a compact thumbnail (keep the original File for Google image search).
+  const dataUrl = (await fileToThumbDataUrl(file)) || (await fileToDataUrl(file));
   pendingPhoto = { type, file, dataUrl };
   render();
 }
@@ -2596,6 +2627,33 @@ function fileToDataUrl(file) {
     reader.onload = () => resolve(reader.result);
     reader.onerror = reject;
     reader.readAsDataURL(file);
+  });
+}
+
+// Downscale a photo to a small JPEG thumbnail so localStorage doesn't blow past
+// its ~5MB quota (which was silently dropping saved items).
+function fileToThumbDataUrl(file, max = 512, quality = 0.7) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      } catch {
+        resolve(null);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
   });
 }
 
