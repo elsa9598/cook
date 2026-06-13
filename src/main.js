@@ -978,9 +978,8 @@ function renderInventoryGrid(type) {
 }
 
 function renderIngredientIcon(entry, type) {
-  const low = Number(entry.amount) <= (type === "sauce" ? 2 : 1);
   return `
-    <button class="ingredient-icon ${low ? "low" : ""}" data-detail="${type}:${entry.id}" title="${escapeAttr(displayName(entry.name))}">
+    <button class="ingredient-icon" data-detail="${type}:${entry.id}" title="${escapeAttr(displayName(entry.name))}">
       <span class="icon-art">${entry.photo ? `<img src="${entry.photo}" alt="" />` : itemEmoji(entry, type)}</span>
       <span class="icon-name">${displayName(entry.name)}</span>
       <span class="icon-qty">${entry.amount}${displayUnit(entry.unit)}</span>
@@ -1032,13 +1031,16 @@ function renderAddForm(type) {
         <div class="grid-2">
           <div class="field">
             <label>${t("amount")}</label>
-            <input name="amount" type="number" min="0" step="0.5" value="1" />
+            <input name="amount" type="number" min="0" step="any" value="1" />
           </div>
           <div class="field">
             <label>${t("unit")}</label>
-            <input name="unit" value="${isSauce ? t("defaultUnitSauce") : t("defaultUnitItem")}" />
+            <input name="unit" list="unit-list" autocomplete="off" value="${isSauce ? t("defaultUnitSauce") : t("defaultUnitItem")}" />
           </div>
         </div>
+        <datalist id="unit-list">
+          ${["개", "g", "kg", "ml", "L", "컵", "스푼", "작은술", "모", "단", "장", "봉지", "봉", "캔", "병", "통", "줌", "톨", "마리", "공기", "팩", "줄"].map((u) => `<option value="${u}"></option>`).join("")}
+        </datalist>
         <div class="field">
           <label>${t("category")}</label>
           <input name="category" value="${isSauce ? t("defaultSauceCategory") : ""}" />
@@ -1293,6 +1295,9 @@ function renderEditModal(type, id) {
     <div class="modal-backdrop">
       <form class="modal" data-edit-form="${type}:${id}">
         <h2>${t("editItem")}</h2>
+        <datalist id="unit-edit-list">
+          ${["개", "g", "kg", "ml", "L", "컵", "스푼", "작은술", "모", "단", "장", "봉지", "봉", "캔", "병", "통", "줌", "톨", "마리", "공기", "팩", "줄"].map((u) => `<option value="${u}"></option>`).join("")}
+        </datalist>
         <div class="form-grid">
           <div class="field">
             <label>${t("name")}</label>
@@ -1301,11 +1306,11 @@ function renderEditModal(type, id) {
           <div class="grid-2">
             <div class="field">
               <label>${t("amount")}</label>
-              <input name="amount" type="number" min="0" step="0.5" value="${entry.amount}" />
+              <input name="amount" type="number" min="0" step="any" value="${entry.amount}" />
             </div>
             <div class="field">
               <label>${t("unit")}</label>
-              <input name="unit" value="${escapeAttr(entry.unit)}" />
+              <input name="unit" list="unit-edit-list" autocomplete="off" value="${escapeAttr(entry.unit)}" />
             </div>
           </div>
           <div class="field">
@@ -1642,6 +1647,28 @@ function deleteInventory(encoded) {
   render();
 }
 
+// Clear-out cooking styles, rotated each recommend so the dish type varies.
+// Steps only reference {mains}, {season} and universal pantry basics (oil/water/
+// sesame) — never a specific ingredient the user may not own.
+const CLEAROUT_STYLES = [
+  { koName: "볶음", enName: "stir-fry",
+    ko: ["{mains}를 한입 크기로 썰고 물기 많은 재료는 따로 둬요.", "중불 팬에 기름을 두르고 단단한 재료부터 넣어 볶아요.", "{season}으로 간을 맞추고 맛을 보며 조절해요.", "마지막에 참기름이나 후추를 넣고 따뜻할 때 담아요."],
+    en: ["Cut {mains} into bite-size pieces; set watery ones aside.", "Heat oil over medium and stir-fry the firmer items first.", "Season with {season} and adjust to taste.", "Finish with sesame oil or pepper and plate warm."] },
+  { koName: "찌개", enName: "stew",
+    ko: ["{mains}를 한입 크기로 썰어요.", "냄비에 물을 붓고 {season}으로 진하게 국물 간을 해요.", "단단한 재료부터 넣어 끓이고 나머지를 더해요.", "보글보글 끓으면 후추를 넣고 따뜻할 때 담아요."],
+    en: ["Cut {mains} into bite sizes.", "Add water to a pot and season the broth boldly with {season}.", "Simmer the firm items first, then add the rest.", "Finish with pepper and serve hot."] },
+  { koName: "국", enName: "soup",
+    ko: ["{mains}를 한입 크기로 썰어요.", "냄비에 물을 넉넉히 붓고 끓여요.", "{mains}를 넣고 {season}으로 국물 간을 맞춰요.", "마지막에 후추나 참기름을 살짝 넣어 담아요."],
+    en: ["Cut {mains} into bite sizes.", "Bring plenty of water to a boil.", "Add {mains} and season the broth with {season}.", "Finish with pepper or sesame oil and serve."] },
+  { koName: "조림", enName: "braise",
+    ko: ["{mains}를 도톰하게 썰어요.", "냄비에 {season}과 물을 넣어 양념을 끓여요.", "{mains}를 넣고 약불에서 자작하게 졸여요.", "국물이 졸아들면 참기름이나 깨를 뿌려 담아요."],
+    en: ["Slice {mains} thick.", "Simmer a sauce of {season} and water in a pot.", "Add {mains} and braise gently until reduced.", "Finish with sesame oil or seeds."] },
+  { koName: "무침", enName: "seasoned salad",
+    ko: ["{mains}를 먹기 좋게 썰거나 살짝 데쳐요.", "물기를 꼭 짜서 볼에 담아요.", "{season}과 참기름, 깨를 넣고 조물조물 무쳐요.", "간을 보며 마무리해 그릇에 담아요."],
+    en: ["Cut or briefly blanch {mains}.", "Squeeze out the water and put in a bowl.", "Toss with {season}, sesame oil and seeds.", "Adjust the seasoning and serve."] },
+];
+let clearoutCursor = 0;
+
 // Lower = use sooner in clear-out (spoils faster).
 const CLEAROUT_PRIORITY = {
   잎채소: 1, 버섯: 1, 해산물: 1,
@@ -1690,33 +1717,30 @@ function buildClearout(servings) {
     return state.lang === "ko" ? `${s} ${a.ko}` : `${ingredientTranslations[s] || s} ${a.en}`;
   });
 
+  // Rotate the cooking style each recommend (볶음→찌개→국→조림→무침) for variety,
+  // while the ingredients stay driven by the fridge (fresh veg first).
+  const style = CLEAROUT_STYLES[clearoutCursor % CLEAROUT_STYLES.length];
+  clearoutCursor += 1;
   const mainTop = mains.slice(0, 3);
-  const koTitle = `${mainTop.map((m) => m.name).join(" ")} 볶음`;
-  const enTitle = `${mainTop.map((m) => ingredientTranslations[m.name] || EN_NAME[m.name] || m.name).join(" ")} stir-fry`;
+  const koTitle = `${mainTop.map((m) => m.name).join(" ")} ${style.koName}`;
+  const enTitle = `${mainTop.map((m) => ingredientTranslations[m.name] || EN_NAME[m.name] || m.name).join(" ")} ${style.enName}`;
 
-  // Cooking steps reference the user's actual ingredients (no hardcoded 두부/대파).
   const mainsKo = mains.map((m) => displayName(m.name)).join(", ");
   const mainsEn = mains.map((m) => ingredientTranslations[m.name] || EN_NAME[m.name] || m.name).join(", ");
   const seasonKo = seasonNames[0] ? displayName(seasonNames[0]) : "간장";
   const seasonEn = seasonNames[0] ? (ingredientTranslations[seasonNames[0]] || EN_NAME[seasonNames[0]] || seasonNames[0]) : "soy sauce";
-  const measuredKo = formatMeasuredList(measured, "ko");
-  const measuredEn = formatMeasuredList(measured, "en");
-  const koSteps = [
-    `${mainsKo}를 한입 크기로 손질하고, 물기 많은 재료는 따로 둬요. 계량: ${measuredKo}.`,
-    "중불 팬에 기름을 두르고 단단한 재료부터 넣어 볶아요.",
-    `${seasonKo}으로 간을 맞추고 맛을 보며 조절해요.`,
-    "마지막에 참기름이나 후추를 살짝 넣고 따뜻할 때 담아요.",
-  ];
-  const enSteps = [
-    `Cut ${mainsEn} into bite-size pieces and set watery ones aside. Measurements: ${measuredEn}.`,
-    "Heat oil in a pan over medium and stir-fry the firmer items first.",
-    `Season with ${seasonEn} and adjust to taste.`,
-    "Finish with a little sesame oil or pepper and plate while warm.",
-  ];
+  const mainsStr = state.lang === "ko" ? mainsKo : mainsEn;
+  const seasonStr = state.lang === "ko" ? seasonKo : seasonEn;
+  const measureSuffix = state.lang === "ko"
+    ? ` 계량: ${formatMeasuredList(measured, "ko")}.`
+    : ` Measurements: ${formatMeasuredList(measured, "en")}.`;
   const titlesKo = [t("stepPrepTitle"), t("stepHeatTitle"), t("stepSeasonTitle"), t("stepPlateTitle")];
   const titlesEn = ["Measure", "Cook", "Check", "Plate"];
-  const src = state.lang === "ko" ? koSteps : enSteps;
-  const steps = src.map((text, i) => ({ title: state.lang === "ko" ? titlesKo[i] : titlesEn[i], text }));
+  const tmpl = state.lang === "ko" ? style.ko : style.en;
+  const steps = tmpl.map((text, i) => ({
+    title: state.lang === "ko" ? titlesKo[i] : titlesEn[i],
+    text: text.replaceAll("{mains}", mainsStr).replaceAll("{season}", seasonStr) + (i === 0 ? measureSuffix : ""),
+  }));
 
   return { measured, shopping, consume: names, koTitle, enTitle, steps };
 }
@@ -1802,8 +1826,10 @@ async function makeRecipe() {
     sourceLabel,
     prompt: buildFoodPrompt(englishTitle, englishMain, measuredIngredients, englishModeName, visual, reference),
   };
-  consumeForRecipe(pickedNames);
-  saveState();
+  // No auto-consume: recommendations don't change the pantry. Items stay until
+  // the user uses (사용) or deletes (삭제) them, so repeated recommends keep
+  // featuring the fresh produce until it's actually removed.
+  void pickedNames;
 }
 
 function buildSmartSummary(mainText, reference, measuredIngredients) {

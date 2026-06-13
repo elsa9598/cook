@@ -581,10 +581,6 @@ button {
   cursor: pointer;
 }
 
-.ingredient-icon.low {
-  border-color: var(--danger);
-  animation: dangerBlink 1s ease-in-out infinite;
-}
 
 .icon-art {
   width: 52px;
