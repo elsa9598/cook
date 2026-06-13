@@ -200,7 +200,7 @@ button {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  padding: 16px 16px calc(92px + env(safe-area-inset-bottom));
+  padding: 16px 16px calc(84px + max(env(safe-area-inset-bottom), 24px));
 }
 
 .hero-band {
@@ -882,7 +882,9 @@ button {
   gap: 0;
   background: var(--white);
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.12);
-  padding: 7px 6px calc(9px + env(safe-area-inset-bottom));
+  /* Keep the tabs clearly above the device nav buttons even when the OS
+     reports a 0 safe-area inset (e.g. Android 3-button nav). */
+  padding: 7px 6px max(env(safe-area-inset-bottom), 24px);
 }
 
 .bottom-tab {
@@ -915,7 +917,7 @@ button {
 .fab {
   position: fixed;
   right: max(18px, calc((100vw - 430px) / 2 + 18px));
-  bottom: 86px;
+  bottom: calc(78px + max(env(safe-area-inset-bottom), 24px));
   z-index: 35;
   width: 56px;
   height: 56px;
@@ -1174,7 +1176,7 @@ button {
   }
 
   .content {
-    padding: 18px 16px calc(108px + env(safe-area-inset-bottom));
+    padding: 18px 16px calc(100px + max(env(safe-area-inset-bottom), 24px));
   }
 
   .hero-title {
