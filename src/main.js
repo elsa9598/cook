@@ -11,7 +11,8 @@ const ko = {
   homeBig: "요리초보 추천",
   premiumBig: "프리미엄 요리실",
   premiumNav: "프리미엄",
-  heroTitle: "있는 재료로 쉬운 요리",
+  heroTitleLine1: "있는 재료로",
+  heroTitleLine2: "쉬운 요리",
   heroCopy: "냉장고, 냉동고, 양념, 실온 먹거리를 보고 몇 인분인지에 맞춰 쉬운 요리를 추천해요.",
   trial: "무료체험",
   trialCopy: "가입 전 3일 동안 사용 가능",
@@ -37,12 +38,17 @@ const ko = {
   detail: "상세",
   use: "사용",
   delete: "삭제",
+  deleteSymbol: "-",
+  edit: "수정",
+  editItem: "재료 수정",
+  cancel: "취소",
+  saveEdit: "수정 저장",
   empty: "아직 저장된 재료가 없어요.",
   seasonTitle: "양념보관창고",
   allSeasonings: "전체 양념",
   recipeSmall: "요리순서",
   shopping: "장보기 재료",
-  steps: "손가락으로 내려 보며 순서대로 따라하세요.",
+  steps: "요리 순서",
   copyPrompt: "최종 이미지 영어 프롬프트 복사",
   copied: "복사 완료",
   authTitle: "요리로 신규 가입",
@@ -86,6 +92,8 @@ const ko = {
   stepSeasonText: "간장, 고추장, 소금 같은 양념은 한 번에 많이 넣지 말고 반씩 넣어 맛을 보며 조절해요.",
   stepPlateTitle: "담아내기",
   stepPlateText: "마지막에 참기름이나 후추처럼 향이 나는 재료를 조금 넣고 따뜻할 때 그릇에 담아요.",
+  finalVisual: "완성 비주얼",
+  finalVisualText: "따뜻한 접시에 윤기 나는 재료가 보기 좋게 담기고, 주재료의 색과 김이 살아 있는 집밥 비주얼로 완성돼요.",
 };
 
 const en = {
@@ -98,7 +106,8 @@ const en = {
   homeBig: "Easy Cook",
   premiumBig: "Premium Kitchen",
   premiumNav: "Premium",
-  heroTitle: "Easy meals from your kitchen",
+  heroTitleLine1: "Easy meals",
+  heroTitleLine2: "from your kitchen",
   heroCopy: "The app checks fridge, freezer, seasonings, and room-temp foods to suggest easy recipes by serving size.",
   trial: "Trial",
   trialCopy: "3 days before sign-up is required",
@@ -124,12 +133,17 @@ const en = {
   detail: "Detail",
   use: "Use",
   delete: "Delete",
+  deleteSymbol: "-",
+  edit: "Edit",
+  editItem: "Edit item",
+  cancel: "Cancel",
+  saveEdit: "Save edit",
   empty: "Nothing saved yet.",
   seasonTitle: "Seasoning Storage",
   allSeasonings: "All seasonings",
   recipeSmall: "Recipe",
   shopping: "Shopping list",
-  steps: "Drag down with one finger and follow the steps.",
+  steps: "Cooking order",
   copyPrompt: "Copy final image prompt",
   copied: "Copied",
   authTitle: "Create cooking account",
@@ -173,6 +187,8 @@ const en = {
   stepSeasonText: "Add soy sauce, chili paste, or salt in small portions, taste, then adjust gradually.",
   stepPlateTitle: "Plate and finish",
   stepPlateText: "Add fragrant ingredients like sesame oil or pepper at the end, then plate while warm.",
+  finalVisual: "Final visual",
+  finalVisualText: "The finished dish looks glossy and hearty on a warm ceramic plate, with the main ingredients clearly visible and a fresh home-cooked feel.",
 };
 
 const storageTypes = {
@@ -267,12 +283,42 @@ const ingredientTranslations = {
   달걀: "egg",
   대파: "green onion",
   두부: "tofu",
+  양파: "onion",
+  당근: "carrot",
+  애호박: "zucchini",
+  김치: "kimchi",
+  우유: "milk",
+  치즈: "cheese",
+  버터: "butter",
   "냉동 만두": "frozen dumplings",
+  냉동밥: "frozen rice",
+  "냉동 대패삼겹살": "frozen thin pork belly",
+  "냉동 새우": "frozen shrimp",
+  "냉동 브로콜리": "frozen broccoli",
+  "냉동 블루베리": "frozen blueberries",
   간장: "soy sauce",
   고추장: "gochujang",
+  된장: "doenjang",
+  소금: "salt",
+  설탕: "sugar",
   참기름: "sesame oil",
+  후추: "black pepper",
+  식초: "vinegar",
+  고춧가루: "gochugaru",
+  식용유: "cooking oil",
+  굴소스: "oyster sauce",
+  마요네즈: "mayonnaise",
+  케첩: "ketchup",
   식빵: "bread slices",
   라면: "instant noodles",
+  쌀: "rice",
+  밥: "cooked rice",
+  파스타면: "pasta",
+  참치캔: "canned tuna",
+  김: "seaweed sheets",
+  감자: "potato",
+  고구마: "sweet potato",
+  밀가루: "flour",
 };
 
 const unitTranslations = {
@@ -282,17 +328,29 @@ const unitTranslations = {
   스푼: "tbsp",
   장: "slices",
   봉: "packs",
+  컵: "cups",
+  캔: "cans",
+  봉지: "bags",
+  통: "bottles",
 };
 
 const categoryTranslations = {
   단백질: "Protein",
   채소: "Vegetable",
   간편식: "Convenience food",
+  냉동재료: "Frozen ingredients",
   "기본 간": "Basic seasoning",
   매운맛: "Spicy",
+  단맛: "Sweet",
+  향신료: "Spices and herbs",
   "기름/향": "Oils and aroma",
+  소스: "Sauce",
+  통조림: "Canned food",
+  곡물: "Grain",
+  구황작물: "Root vegetable",
   빵: "Bread",
   면: "Noodles",
+  유제품: "Dairy",
   기본: "Basic",
 };
 
@@ -305,6 +363,7 @@ let servings = 1;
 let recipe = null;
 let modal = null;
 
+normalizeState();
 registerServiceWorker();
 applyLaunchShortcut();
 
@@ -324,14 +383,48 @@ function seedInventory() {
       item("달걀", 6, "개", "단백질", "", null),
       item("대파", 1, "단", "채소", "", null),
       item("두부", 1, "모", "단백질", "", null),
+      item("양파", 2, "개", "채소", "", null),
+      item("당근", 1, "개", "채소", "", null),
+      item("애호박", 1, "개", "채소", "", null),
+      item("김치", 1, "통", "기본", "", null),
+      item("우유", 1, "통", "유제품", "", null),
+      item("치즈", 4, "장", "유제품", "", null),
+      item("버터", 1, "개", "유제품", "", null),
     ],
-    freezer: [item("냉동 만두", 12, "개", "간편식", "", null)],
+    freezer: [
+      item("냉동 만두", 12, "개", "간편식", "", null),
+      item("냉동밥", 2, "개", "간편식", "", null),
+      item("냉동 대패삼겹살", 1, "봉지", "냉동재료", "", null),
+      item("냉동 새우", 1, "봉지", "냉동재료", "", null),
+      item("냉동 브로콜리", 1, "봉지", "냉동재료", "", null),
+      item("냉동 블루베리", 1, "봉지", "냉동재료", "", null),
+    ],
     sauce: [
       item("간장", 7, "스푼", "기본 간", describeSeasoning("간장"), null),
       item("고추장", 3, "스푼", "매운맛", describeSeasoning("고추장"), null),
       item("참기름", 2, "스푼", "기름/향", describeSeasoning("참기름"), null),
+      item("된장", 4, "스푼", "기본 간", describeSeasoning("된장"), null),
+      item("소금", 6, "스푼", "기본 간", describeSeasoning("소금"), null),
+      item("설탕", 6, "스푼", "단맛", describeSeasoning("설탕"), null),
+      item("후추", 5, "스푼", "향신료", describeSeasoning("후추"), null),
+      item("식초", 4, "스푼", "소스", describeSeasoning("식초"), null),
+      item("고춧가루", 4, "스푼", "매운맛", "", null),
+      item("식용유", 1, "통", "기름/향", "", null),
+      item("굴소스", 2, "스푼", "소스", "", null),
+      item("마요네즈", 1, "통", "소스", "", null),
+      item("케첩", 1, "통", "소스", "", null),
     ],
-    room: [item("식빵", 4, "장", "빵", "", null), item("라면", 2, "봉", "면", "", null)],
+    room: [
+      item("식빵", 4, "장", "빵", "", null),
+      item("라면", 2, "봉", "면", "", null),
+      item("쌀", 3, "컵", "곡물", "", null),
+      item("파스타면", 1, "봉지", "면", "", null),
+      item("참치캔", 2, "캔", "통조림", "", null),
+      item("김", 5, "장", "기본", "", null),
+      item("감자", 3, "개", "구황작물", "", null),
+      item("고구마", 2, "개", "구황작물", "", null),
+      item("밀가루", 2, "컵", "곡물", "", null),
+    ],
   };
 }
 
@@ -359,6 +452,20 @@ function loadState() {
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function normalizeState() {
+  const base = seedInventory();
+  state.inventory = state.inventory || {};
+  Object.entries(base).forEach(([type, defaults]) => {
+    state.inventory[type] = Array.isArray(state.inventory[type]) ? state.inventory[type] : [];
+    defaults.forEach((entry) => {
+      if (!state.inventory[type].some((saved) => saved.name === entry.name)) {
+        state.inventory[type].push(entry);
+      }
+    });
+  });
+  saveState();
 }
 
 function activeLang() {
@@ -454,13 +561,7 @@ function renderPagePanel() {
   const showBackRow = selectedTab !== "home";
   return `
     <section class="page-panel">
-      ${showBackRow ? `<div class="panel-row">
-        <div class="panel-center">
-          <button class="back-button" data-action="back">${t("back")}</button>
-          <span class="panel-dot">·</span>
-          <div class="mini-title">${titles.small}</div>
-        </div>
-      </div>` : ""}
+      ${showBackRow ? `<button class="back-button" data-action="back">${t("back")}</button>` : ""}
       <h1 class="big-title">${titles.big}</h1>
     </section>
   `;
@@ -496,7 +597,7 @@ function renderHome() {
   const locked = !canUseFeatures();
   return `
     <section class="hero-band">
-      <h2 class="hero-title">${t("heroTitle")}</h2>
+      <h2 class="hero-title"><span>${t("heroTitleLine1")}</span><span>${t("heroTitleLine2")}</span></h2>
       <p>${t("heroCopy")}</p>
     </section>
     <section class="trial-strip">
@@ -504,7 +605,7 @@ function renderHome() {
         <strong>${state.user ? "Premium" : locked ? t("signupRequired") : `${t("trial")} ${trialDay()}/3`}</strong>
         <span>${state.user ? t("joinedCopy") : t("trialCopy")}</span>
       </div>
-      <button class="pill" data-action="signup">${state.user ? "OK" : t("joinNow")}</button>
+      <button class="pill" data-action="${state.user ? "noop" : "signup"}">${state.user ? "OK" : t("joinNow")}</button>
     </section>
     ${locked ? renderGate() : ""}
     <section class="section">
@@ -629,8 +730,9 @@ function renderInventoryItem(entry, type) {
       </div>
       <div class="item-actions">
         ${type === "sauce" ? `<button class="tiny-button" data-detail="${entry.id}">${t("detail")}</button>` : ""}
+        <button class="tiny-button" data-edit="${type}:${entry.id}">${t("edit")}</button>
         <button class="tiny-button" data-use="${type}:${entry.id}">${t("use")}</button>
-        <button class="tiny-button" data-delete="${type}:${entry.id}">${t("delete")}</button>
+        <button class="tiny-button delete-button" data-delete="${type}:${entry.id}" title="${t("delete")}">${t("deleteSymbol")}</button>
       </div>
     </article>
   `;
@@ -680,6 +782,10 @@ function renderRecipePage() {
       </div>
       ${recipe.steps.map((step, index) => renderStep(step, index)).join("")}
     </section>
+    <section class="section card final-visual">
+      <h2 class="section-title">${t("finalVisual")}</h2>
+      <p>${recipe.visual}</p>
+    </section>
     <section class="copy-box">
       <div class="field">
         <label>${t("promptLabel")}</label>
@@ -692,30 +798,13 @@ function renderRecipePage() {
 
 function renderStep(step, index) {
   return `
-    <article class="step-card">
-      <div class="step-visual">
-        ${stepSvg(index)}
-      </div>
+    <article class="step-card text-step">
+      <div class="step-number">${index + 1}</div>
       <div class="step-body">
-        <h3>${index + 1}. ${step.title}</h3>
+        <h3>${step.title}</h3>
         <p>${step.text}</p>
       </div>
     </article>
-  `;
-}
-
-function stepSvg(index) {
-  const colors = ["#006241", "#00754A", "#CBA258", "#1E3932"];
-  const c = colors[index % colors.length];
-  return `
-    <svg class="step-svg" viewBox="0 0 360 152" role="img" aria-label="${t("recipeSmall")}">
-      <rect x="0" y="0" width="360" height="152" fill="#edebe9"/>
-      <circle cx="${80 + index * 18}" cy="74" r="34" fill="${c}" opacity="0.18"/>
-      <rect x="130" y="48" width="120" height="58" rx="29" fill="#ffffff" stroke="${c}" stroke-width="4"/>
-      <path d="M150 80 C176 ${35 + index * 7}, 210 ${114 - index * 5}, 238 72" fill="none" stroke="${c}" stroke-width="6" stroke-linecap="round"/>
-      <circle cx="270" cy="62" r="16" fill="${c}" opacity="0.76"/>
-      <rect x="62" y="106" width="235" height="7" rx="4" fill="#1E3932" opacity="0.2"/>
-    </svg>
   `;
 }
 
@@ -759,6 +848,7 @@ function bottomTab(key, emoji, label) {
 function renderModal() {
   if (modal === "signup" || modal === "login") return renderAuthModal(modal);
   if (modal?.startsWith("detail:")) return renderDetailModal(modal.split(":")[1]);
+  if (modal?.startsWith("edit:")) return renderEditModal(modal.split(":")[1], modal.split(":")[2]);
   return "";
 }
 
@@ -809,6 +899,46 @@ function renderDetailModal(id) {
   `;
 }
 
+function renderEditModal(type, id) {
+  const entry = state.inventory[type]?.find((x) => x.id === id);
+  if (!entry) return "";
+  return `
+    <div class="modal-backdrop">
+      <form class="modal" data-edit-form="${type}:${id}">
+        <h2>${t("editItem")}</h2>
+        <div class="form-grid">
+          <div class="field">
+            <label>${t("name")}</label>
+            <input name="name" required value="${escapeAttr(entry.name)}" />
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label>${t("amount")}</label>
+              <input name="amount" type="number" min="0" step="0.5" value="${entry.amount}" />
+            </div>
+            <div class="field">
+              <label>${t("unit")}</label>
+              <input name="unit" value="${escapeAttr(entry.unit)}" />
+            </div>
+          </div>
+          <div class="field">
+            <label>${t("category")}</label>
+            <input name="category" value="${escapeAttr(entry.category || "")}" />
+          </div>
+          <div class="field">
+            <label>${t("memo")}</label>
+            <textarea name="memo">${escapeHtml(entry.memo || "")}</textarea>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="ghost-pill" data-action="close-modal">${t("cancel")}</button>
+          <button type="submit" class="pill">${t("saveEdit")}</button>
+        </div>
+      </form>
+    </div>
+  `;
+}
+
 function bindEvents() {
   document.querySelectorAll("[data-action]").forEach((button) => {
     button.addEventListener("click", handleAction);
@@ -846,7 +976,9 @@ function bindEvents() {
   document.querySelectorAll("[data-cook]").forEach((button) => {
     button.addEventListener("click", () => {
       selectedCookMode = button.dataset.cook;
-      render();
+      document.querySelectorAll("[data-cook]").forEach((card) => {
+        card.classList.toggle("active", card.dataset.cook === selectedCookMode);
+      });
     });
   });
   document.querySelectorAll("[data-form]").forEach((form) => {
@@ -855,11 +987,20 @@ function bindEvents() {
   document.querySelectorAll("[data-auth-form]").forEach((form) => {
     form.addEventListener("submit", handleAuth);
   });
+  document.querySelectorAll("[data-edit-form]").forEach((form) => {
+    form.addEventListener("submit", handleEditItem);
+  });
   document.querySelectorAll("[data-use]").forEach((button) => {
     button.addEventListener("click", () => useInventory(button.dataset.use));
   });
   document.querySelectorAll("[data-delete]").forEach((button) => {
     button.addEventListener("click", () => deleteInventory(button.dataset.delete));
+  });
+  document.querySelectorAll("[data-edit]").forEach((button) => {
+    button.addEventListener("click", () => {
+      modal = `edit:${button.dataset.edit}`;
+      render();
+    });
   });
   document.querySelectorAll("[data-detail]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -965,6 +1106,25 @@ async function handleAuth(event) {
   render();
 }
 
+function handleEditItem(event) {
+  event.preventDefault();
+  const [type, id] = event.currentTarget.dataset.editForm.split(":");
+  const entry = state.inventory[type]?.find((x) => x.id === id);
+  if (!entry) return;
+  const data = new FormData(event.currentTarget);
+  entry.name = String(data.get("name") || "").trim() || entry.name;
+  entry.amount = Number(data.get("amount")) || 0;
+  entry.unit = String(data.get("unit") || "").trim() || entry.unit;
+  entry.category = String(data.get("category") || "").trim();
+  entry.memo = String(data.get("memo") || "").trim();
+  if (type === "sauce" && !entry.memo) {
+    entry.memo = describeSeasoning(entry.name);
+  }
+  saveState();
+  modal = null;
+  render();
+}
+
 function useInventory(encoded) {
   const [type, id] = encoded.split(":");
   const entry = state.inventory[type].find((x) => x.id === id);
@@ -992,15 +1152,22 @@ function makeRecipe() {
   const names = available.map((x) => x.name);
   const displayNames = available.map((x) => displayName(x.name));
   const mode = cookModes.find(([key]) => key === selectedCookMode);
-  const main = names.slice(0, 4);
-  const displayMain = displayNames.slice(0, 4);
+  const main = names.slice(0, 5);
+  const displayMain = displayNames.slice(0, 5);
+  const englishMain = main.map((name) => ingredientTranslations[name] || name);
   const modeName = mode ? (state.lang === "ko" ? mode[1] : mode[2]) : t("recipeFallback");
+  const englishModeName = mode?.[2] || "easy home cooking";
   const title = state.lang === "ko"
     ? `${modeName} ${servings}${t("servingsSuffix")}`
     : `${modeName} for ${servings} ${t("servingsSuffix")}`;
+  const englishTitle = `${englishModeName} for ${servings} servings`;
   const required = requiredForMode(selectedCookMode, servings);
   const shopping = required.filter((need) => !names.some((name) => need.includes(name) || need.includes(displayName(name))));
   const mainText = displayMain.join(", ") || t("basicIngredients");
+  const visual = buildVisualDescription(englishModeName, englishMain);
+  const visualText = state.lang === "ko"
+    ? `${displayMain.join(", ") || "집에 있는 재료"}가 한 접시에 보기 좋게 담기고, 윤기와 김이 살아 있어 완성 이미지를 만들면 따뜻한 집밥 느낌이 나요.`
+    : visual;
   recipe = {
     title,
     summary: formatText(t("recipeSummary"), { items: mainText }),
@@ -1023,7 +1190,8 @@ function makeRecipe() {
         text: t("stepPlateText"),
       },
     ],
-    prompt: buildFoodPrompt(title, displayMain, selectedCookMode),
+    visual: visualText,
+    prompt: buildFoodPrompt(englishTitle, englishMain, englishModeName, visual),
   };
   consumeForRecipe();
   saveState();
@@ -1068,9 +1236,14 @@ function consumeForRecipe() {
   });
 }
 
-function buildFoodPrompt(title, ingredients, mode) {
-  const modeText = cookModes.find(([key]) => key === mode)?.[2] || "easy home cooking";
-  return `A mouthwatering vertical smartphone food photo of ${title}, ${modeText}, made with ${ingredients.join(", ") || "simple pantry ingredients"}, warm natural kitchen light, glossy textures, steam rising, neatly plated on a ceramic dish, appetizing colors, realistic detail, shallow depth of field, no text, no watermark.`;
+function buildVisualDescription(modeName, ingredients) {
+  const list = ingredients.filter(Boolean).join(", ") || "simple pantry ingredients";
+  return `The final dish should look like a ${modeName} made with ${list}: glossy, warm, generous, neatly plated, with visible textures, steam, and appetizing color contrast.`;
+}
+
+function buildFoodPrompt(title, ingredients, modeText, visualDescription) {
+  const list = ingredients.filter(Boolean).join(", ") || "simple pantry ingredients";
+  return `Create a mouthwatering vertical smartphone food photo for "${title}". Style: ${modeText}. Main ingredients: ${list}. Visual direction: ${visualDescription} Plate the food on a warm ceramic dish, show glossy textures, gentle steam, fresh garnish, appetizing color contrast, realistic home kitchen lighting, shallow depth of field, high detail, no text, no watermark, no hands, no packaging.`;
 }
 
 function describeSeasoning(name) {
@@ -1114,6 +1287,19 @@ function fileToDataUrl(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value);
 }
 
 async function copyText(text) {
