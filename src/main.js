@@ -32,6 +32,11 @@ const ko = {
   amount: "수량",
   unit: "단위",
   photo: "카메라/사진",
+  cameraPick: "카메라로 찍기",
+  imagePick: "이미지 선택",
+  photoHelp: "사진을 넣고 이름을 적으면 저장할 때 맛, 사용 요리, 팁을 자동 메모로 채워요.",
+  photoDetected: "사진 후보",
+  analyzePhoto: "사진 설명 채우기",
   save: "저장",
   category: "카테고리",
   memo: "메모",
@@ -135,6 +140,11 @@ const en = {
   amount: "Amount",
   unit: "Unit",
   photo: "Camera/photo",
+  cameraPick: "Take photo",
+  imagePick: "Choose image",
+  photoHelp: "Add a photo and name; saving fills taste, cooking uses, and tips automatically.",
+  photoDetected: "Photo guess",
+  analyzePhoto: "Fill photo notes",
   save: "Save",
   category: "Category",
   memo: "Memo",
@@ -335,6 +345,144 @@ const ingredientTranslations = {
   감자: "potato",
   고구마: "sweet potato",
   밀가루: "flour",
+};
+
+const ingredientKnowledge = {
+  달걀: {
+    category: "단백질",
+    tasteKo: "고소하고 부드러운 맛",
+    usageKo: "달걀밥, 토스트, 볶음밥, 전, 팬 디저트에 좋아요.",
+    tipKo: "완전히 익히려면 약불에서 천천히, 촉촉하게 먹으려면 불을 일찍 꺼요.",
+    tasteEn: "savory and soft",
+    usageEn: "Good for egg rice, toast, fried rice, pancakes, and skillet desserts.",
+    tipEn: "Cook gently for a soft texture; use low heat when you want it fully set.",
+  },
+  우유: {
+    category: "유제품",
+    tasteKo: "부드럽고 고소한 맛",
+    usageKo: "팬케이크, 크림소스, 달걀찜, 디저트 반죽에 좋아요.",
+    tipKo: "센 불에 오래 끓이면 눌어붙기 쉬우니 약불에서 저어 주세요.",
+    tasteEn: "mild, creamy, and slightly sweet",
+    usageEn: "Good for pancakes, cream sauces, steamed eggs, and dessert batter.",
+    tipEn: "Stir over low heat because milk can scorch quickly.",
+  },
+  양파: {
+    category: "채소",
+    tasteKo: "익히면 달고 생으로는 알싸한 맛",
+    usageKo: "볶음, 덮밥, 카레, 고기굽기, 국물 베이스에 좋아요.",
+    tipKo: "갈색이 살짝 나게 볶으면 단맛이 올라와 초보 요리도 맛있어져요.",
+    tasteEn: "sharp raw, sweet when cooked",
+    usageEn: "Good for stir-fries, rice bowls, curry, grilled meat, and soup bases.",
+    tipEn: "Brown it lightly to bring out sweetness.",
+  },
+  대파: {
+    category: "채소",
+    tasteKo: "향긋하고 매콤한 파 향",
+    usageKo: "볶음밥, 국, 라면, 고기굽기, 파기름에 좋아요.",
+    tipKo: "기름에 먼저 30초 볶으면 향이 살아나요.",
+    tasteEn: "aromatic and mildly spicy",
+    usageEn: "Good for fried rice, soups, noodles, grilled meat, and scallion oil.",
+    tipEn: "Fry it in oil for 30 seconds first to release aroma.",
+  },
+  두부: {
+    category: "단백질",
+    tasteKo: "담백하고 부드러운 맛",
+    usageKo: "두부부침, 찌개, 볶음, 덮밥 단백질 재료로 좋아요.",
+    tipKo: "키친타월로 물기를 빼면 팬에서 덜 부서져요.",
+    tasteEn: "mild and soft",
+    usageEn: "Good for pan-fried tofu, stews, stir-fries, and rice bowls.",
+    tipEn: "Pat dry before cooking so it browns better.",
+  },
+  김치: {
+    category: "기본",
+    tasteKo: "새콤하고 매콤한 감칠맛",
+    usageKo: "김치볶음밥, 찌개, 고기 곁들임, 냉장고 털기 요리에 좋아요.",
+    tipKo: "신 김치는 설탕 0.5스푼을 넣으면 맛이 둥글어져요.",
+    tasteEn: "tangy, spicy, and savory",
+    usageEn: "Good for kimchi fried rice, stews, meat sides, and clean-out meals.",
+    tipEn: "For very sour kimchi, add a little sugar to round the flavor.",
+  },
+  치즈: {
+    category: "유제품",
+    tasteKo: "짭조름하고 고소한 맛",
+    usageKo: "토스트, 라면, 볶음밥, 파티 한입 요리에 좋아요.",
+    tipKo: "마지막 30초에 올려 녹이면 질기지 않고 부드러워요.",
+    tasteEn: "salty, creamy, and rich",
+    usageEn: "Good for toast, noodles, fried rice, and party bites.",
+    tipEn: "Add at the end and melt briefly for a softer texture.",
+  },
+  버터: {
+    category: "유제품",
+    tasteKo: "고소하고 진한 풍미",
+    usageKo: "빵, 팬 디저트, 감자, 볶음 향내기에 좋아요.",
+    tipKo: "타기 쉬우니 약불에서 녹이고 갈색이 진해지기 전에 재료를 넣어요.",
+    tasteEn: "rich, creamy, and nutty",
+    usageEn: "Good for bread, skillet desserts, potatoes, and aromatic stir-fries.",
+    tipEn: "Melt over low heat and add ingredients before it browns too much.",
+  },
+  "냉동 블루베리": {
+    category: "냉동재료",
+    tasteKo: "새콤달콤하고 과즙 있는 맛",
+    usageKo: "팬케이크, 요거트, 팬 디저트, 잼 느낌 토핑에 좋아요.",
+    tipKo: "해동하지 않고 바로 올리면 색이 번지지 않고 모양이 살아나요.",
+    tasteEn: "sweet-tart and juicy",
+    usageEn: "Good for pancakes, yogurt, skillet desserts, and jam-like toppings.",
+    tipEn: "Use straight from frozen to keep the shape and color cleaner.",
+  },
+  밀가루: {
+    category: "곡물",
+    tasteKo: "담백한 반죽 베이스",
+    usageKo: "팬브레드, 부침, 팬케이크, 소스 농도 잡기에 좋아요.",
+    tipKo: "조금씩 넣어 섞으면 덩어리가 덜 생겨요.",
+    tasteEn: "neutral batter base",
+    usageEn: "Good for pan bread, pancakes, fritters, and thickening sauces.",
+    tipEn: "Add gradually to avoid lumps.",
+  },
+  감자: {
+    category: "구황작물",
+    tasteKo: "포슬포슬하고 담백한 맛",
+    usageKo: "간식, 볶음, 고기 곁들임, 파티 플래터에 좋아요.",
+    tipKo: "작게 썰어 전자레인지에 먼저 익히면 팬 조리가 빨라져요.",
+    tasteEn: "mild and fluffy",
+    usageEn: "Good for snacks, stir-fries, meat sides, and party platters.",
+    tipEn: "Microwave small pieces first to shorten pan cooking.",
+  },
+  고구마: {
+    category: "구황작물",
+    tasteKo: "달콤하고 포근한 맛",
+    usageKo: "간식, 디저트, 토스트 속, 팬 디저트에 좋아요.",
+    tipKo: "익힌 고구마는 우유나 버터와 섞으면 부드러운 속재료가 돼요.",
+    tasteEn: "sweet and soft",
+    usageEn: "Good for snacks, desserts, toast fillings, and skillet sweets.",
+    tipEn: "Mash cooked sweet potato with milk or butter for a soft filling.",
+  },
+};
+
+const photoNameAliases = {
+  달걀: ["egg", "eggs", "계란", "달걀"],
+  우유: ["milk", "우유"],
+  양파: ["onion", "양파"],
+  대파: ["greenonion", "scallion", "대파", "파"],
+  두부: ["tofu", "두부"],
+  김치: ["kimchi", "김치"],
+  치즈: ["cheese", "치즈"],
+  버터: ["butter", "버터"],
+  "냉동 블루베리": ["blueberry", "blueberries", "블루베리"],
+  밀가루: ["flour", "밀가루"],
+  감자: ["potato", "감자"],
+  고구마: ["sweetpotato", "고구마"],
+  간장: ["soysauce", "soy", "간장"],
+  고추장: ["gochujang", "고추장"],
+  된장: ["doenjang", "된장"],
+  소금: ["salt", "소금"],
+  설탕: ["sugar", "설탕"],
+  참기름: ["sesameoil", "sesame", "참기름"],
+  후추: ["pepper", "후추"],
+  식초: ["vinegar", "식초"],
+  식용유: ["oil", "식용유"],
+  굴소스: ["oystersauce", "oyster", "굴소스"],
+  마요네즈: ["mayonnaise", "mayo", "마요네즈"],
+  케첩: ["ketchup", "케첩"],
 };
 
 const unitTranslations = {
@@ -800,13 +948,23 @@ function renderAddForm(type) {
         <h2 class="section-title">${t("addItem")}</h2>
       </div>
       <form class="form-grid" data-form="${type}">
-        <div class="field">
+        <div class="field photo-field">
           <label>${t("photo")}</label>
-          <input type="file" accept="image/*" capture="environment" name="photo" />
+          <div class="photo-actions">
+            <label class="photo-choice">
+              <input type="file" accept="image/*" capture="environment" name="photoCamera" data-photo-input="${type}" />
+              <span>${t("cameraPick")}</span>
+            </label>
+            <label class="photo-choice">
+              <input type="file" accept="image/*" name="photoGallery" data-photo-input="${type}" />
+              <span>${t("imagePick")}</span>
+            </label>
+          </div>
+          <p class="photo-help" data-photo-status="${type}">${t("photoHelp")}</p>
         </div>
         <div class="field">
           <label>${t("name")}</label>
-          <input name="name" required placeholder="${isSauce ? t("exampleSauce") : t("exampleIngredient")}" />
+          <input name="name" required placeholder="${isSauce ? t("exampleSauce") : t("exampleIngredient")}" data-name-input />
         </div>
         <div class="grid-2">
           <div class="field">
@@ -826,6 +984,7 @@ function renderAddForm(type) {
           <label>${t("memo")}</label>
           <textarea name="memo" placeholder="${isSauce ? t("sauceMemoPlaceholder") : t("itemMemoPlaceholder")}"></textarea>
         </div>
+        <button class="ghost-pill" type="button" data-action="analyze-photo">${t("analyzePhoto")}</button>
         <button class="pill" type="submit">${t("save")}</button>
       </form>
     </section>
@@ -843,6 +1002,7 @@ function renderInventoryItem(entry, type) {
       </div>
       <div class="item-actions">
         ${type === "sauce" ? `<button class="tiny-button" data-detail="${entry.id}">${t("detail")}</button>` : ""}
+        <button class="tiny-button" data-web-search="${escapeAttr(entry.name)}">${t("searchWeb")}</button>
         <button class="tiny-button" data-edit="${type}:${entry.id}">${t("edit")}</button>
         <button class="tiny-button" data-use="${type}:${entry.id}">${t("use")}</button>
         <button class="tiny-button delete-button" data-delete="${type}:${entry.id}" title="${t("delete")}">${t("deleteSymbol")}</button>
@@ -1143,6 +1303,9 @@ function bindEvents() {
   document.querySelectorAll("[data-form]").forEach((form) => {
     form.addEventListener("submit", handleAddItem);
   });
+  document.querySelectorAll("[data-photo-input]").forEach((input) => {
+    input.addEventListener("change", () => handlePhotoPick(input));
+  });
   document.querySelectorAll("[data-auth-form]").forEach((form) => {
     form.addEventListener("submit", handleAuth);
   });
@@ -1176,8 +1339,8 @@ function bindEvents() {
   document.querySelectorAll("[data-web-search]").forEach((button) => {
     button.addEventListener("click", () => {
       const queryText = state.lang === "ko"
-        ? `${button.dataset.webSearch} 양념 사용법 요리 팁`
-        : `${displayName(button.dataset.webSearch)} seasoning cooking uses tips`;
+        ? `${button.dataset.webSearch} 요리 활용법 맛 보관법`
+        : `${displayName(button.dataset.webSearch)} cooking uses taste storage tips`;
       const query = encodeURIComponent(queryText);
       window.open(`https://www.google.com/search?q=${query}`, "_blank", "noopener,noreferrer");
     });
@@ -1223,7 +1386,43 @@ async function handleAction(event) {
     target.textContent = t("copied");
     return;
   }
+  if (action === "analyze-photo") {
+    handlePhotoAnalyze(target.closest("form"));
+    return;
+  }
   render();
+}
+
+function handlePhotoPick(input) {
+  const form = input.closest("form");
+  const file = input.files?.[0];
+  if (!form || !file) return;
+  applyPhotoGuess(form, file);
+}
+
+function handlePhotoAnalyze(form) {
+  if (!form) return;
+  const file = selectedPhotoFile(new FormData(form));
+  applyPhotoGuess(form, file);
+}
+
+function applyPhotoGuess(form, file) {
+  const type = form.dataset.form;
+  const nameInput = form.querySelector("[name='name']");
+  const categoryInput = form.querySelector("[name='category']");
+  const memoInput = form.querySelector("[name='memo']");
+  const status = form.querySelector("[data-photo-status]");
+  const candidate = inferNameFromPhoto(file?.name || "", type) || knownItemKey(nameInput?.value || "");
+  const name = candidate || String(nameInput?.value || "").trim();
+  if (candidate && nameInput && !nameInput.value.trim()) nameInput.value = candidate;
+  const info = buildSavedItemInfo(name, type, memoInput?.value || "");
+  if (categoryInput && !categoryInput.value.trim()) categoryInput.value = info.category;
+  if (memoInput && (!memoInput.value.trim() || candidate)) memoInput.value = info.memo;
+  if (status) {
+    status.textContent = candidate
+      ? `${t("photoDetected")}: ${displayName(candidate)} · ${info.category}`
+      : t("photoHelp");
+  }
 }
 
 async function handleAddItem(event) {
@@ -1233,15 +1432,13 @@ async function handleAddItem(event) {
   const data = new FormData(form);
   const name = String(data.get("name") || "").trim();
   if (!name) return;
-  const file = data.get("photo");
+  const file = selectedPhotoFile(data);
   const photo = file && file.size ? await fileToDataUrl(file) : null;
   let memo = String(data.get("memo") || "").trim();
   let category = String(data.get("category") || "").trim();
-  if (type === "sauce") {
-    const info = enrichSeasoning(name, memo);
-    memo = memo || describeSeasoning(name);
-    category = category || info.category;
-  }
+  const info = buildSavedItemInfo(name, type, memo);
+  memo = memo || info.memo;
+  category = category || info.category;
   state.inventory[type].unshift(
     item(name, Number(data.get("amount")) || 0, String(data.get("unit") || "개"), category, memo, photo)
   );
@@ -1378,6 +1575,98 @@ function pickRecipeItems(items, profile) {
     if (picked.length < 5 && !picked.some((x) => x.name === entry.name)) picked.push(entry);
   });
   return picked;
+}
+
+function selectedPhotoFile(data) {
+  const camera = data.get("photoCamera");
+  const gallery = data.get("photoGallery");
+  if (camera && camera.size) return camera;
+  if (gallery && gallery.size) return gallery;
+  return null;
+}
+
+function inferNameFromPhoto(fileName, type) {
+  const compact = normalizeKeyword(fileName);
+  if (!compact) return "";
+  const candidates = type === "sauce"
+    ? Object.keys(seasoningKnowledge)
+    : Object.keys(photoNameAliases);
+  return candidates.find((name) => {
+    const aliases = photoNameAliases[name] || [name, ingredientTranslations[name]];
+    return aliases.filter(Boolean).some((alias) => compact.includes(normalizeKeyword(alias)));
+  }) || "";
+}
+
+function knownItemKey(name) {
+  const compact = normalizeKeyword(name);
+  if (!compact) return "";
+  return Object.keys({ ...ingredientKnowledge, ...seasoningKnowledge }).find((key) => {
+    const aliases = photoNameAliases[key] || [key, ingredientTranslations[key]];
+    return normalizeKeyword(key) === compact || aliases.filter(Boolean).some((alias) => compact.includes(normalizeKeyword(alias)));
+  }) || "";
+}
+
+function normalizeKeyword(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/\.[a-z0-9]+$/i, "")
+    .replace(/[^a-z0-9가-힣]/g, "");
+}
+
+function buildSavedItemInfo(name, type, fallbackMemo = "") {
+  const key = knownItemKey(name) || name;
+  if (type === "sauce") {
+    const info = enrichSeasoning(key, fallbackMemo);
+    return {
+      category: info.category,
+      memo: fallbackMemo || formatAutoMemo(key, {
+        tasteKo: seasoningTasteKo(key),
+        tasteEn: seasoningTasteEn(key),
+        usageKo: info.usage,
+        usageEn: info.usage,
+        tipKo: info.tip,
+        tipEn: info.tip,
+      }),
+    };
+  }
+  const info = ingredientKnowledge[key];
+  if (info) {
+    return {
+      category: activeLang() === "ko" ? info.category : categoryTranslations[info.category] || info.category,
+      memo: fallbackMemo || formatAutoMemo(key, info),
+    };
+  }
+  return {
+    category: type === "freezer" ? displayCategory("냉동재료") : t("defaultCategory"),
+    memo: fallbackMemo || (activeLang() === "ko"
+      ? `사진과 이름 기준으로 저장했어요. 맛과 활용법은 무료 검색에서 "${name} 요리 활용법 맛 보관법"으로 확인해 보세요.`
+      : `Saved from photo and name. Use free search for "${name} cooking uses taste storage tips" to improve the note.`),
+  };
+}
+
+function formatAutoMemo(name, info) {
+  if (activeLang() === "ko") {
+    return `맛: ${info.tasteKo} · 사용 요리: ${info.usageKo} · 팁: ${info.tipKo} · 무료 검색 키워드: "${displayName(name)} 요리 활용법 맛 보관법"`;
+  }
+  return `Taste: ${info.tasteEn} · Cooking uses: ${info.usageEn} · Tip: ${info.tipEn} · Free search keyword: "${displayName(name)} cooking uses taste storage tips"`;
+}
+
+function seasoningTasteKo(name) {
+  if (name.includes("설탕")) return "달콤하고 윤기를 주는 맛";
+  if (name.includes("식초")) return "새콤하고 산뜻한 맛";
+  if (name.includes("고추") || name.includes("후추")) return "매콤하고 향이 강한 맛";
+  if (name.includes("참기름") || name.includes("식용유")) return "고소하고 향을 살리는 맛";
+  if (name.includes("소금") || name.includes("간장") || name.includes("된장") || name.includes("굴소스")) return "짭조름하고 감칠맛 있는 맛";
+  return "요리의 간과 향을 보강하는 맛";
+}
+
+function seasoningTasteEn(name) {
+  if (name.includes("설탕")) return "sweet and glossy";
+  if (name.includes("식초")) return "sour and bright";
+  if (name.includes("고추") || name.includes("후추")) return "spicy and aromatic";
+  if (name.includes("참기름") || name.includes("식용유")) return "nutty or rich";
+  if (name.includes("소금") || name.includes("간장") || name.includes("된장") || name.includes("굴소스")) return "salty and savory";
+  return "seasoning that adds flavor and aroma";
 }
 
 function buildMeasuredIngredients(mode, profile, pickedNames, count) {
