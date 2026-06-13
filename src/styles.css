@@ -433,6 +433,18 @@ button {
   pointer-events: none;
 }
 
+.backup-restore {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+}
+
+.backup-restore input {
+  display: none;
+}
+
 .photo-choice {
   position: relative;
 }

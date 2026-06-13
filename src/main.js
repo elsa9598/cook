@@ -121,6 +121,12 @@ const ko = {
   searchTerm: "검색어",
   amountUnit: "수량/단위",
   noMemo: "저장된 메모가 없어요. 무료 웹 검색으로 요리법을 채워보세요.",
+  backupTitle: "보관함 백업",
+  backupSave: "백업 저장",
+  backupRestore: "백업 복원",
+  backupHint: "보관함을 파일로 저장해 두면 브라우저를 비우거나 기기를 바꿔도 그대로 복원할 수 있어요.",
+  backupDone: "백업 저장 완료",
+  restoreDone: "복원 완료",
 };
 
 const en = {
@@ -240,6 +246,12 @@ const en = {
   searchTerm: "Search term",
   amountUnit: "Amount/unit",
   noMemo: "No memo saved yet. Use free web search to fill in a recipe.",
+  backupTitle: "Storage backup",
+  backupSave: "Save backup",
+  backupRestore: "Restore",
+  backupHint: "Save your storage to a file so you can restore it even if the browser is cleared or you switch devices.",
+  backupDone: "Backup saved",
+  restoreDone: "Restored",
 };
 
 const storageTypes = {
@@ -899,6 +911,18 @@ function renderHome() {
     </section>
     <section class="section">
       <div class="section-head">
+        <h2 class="section-title">${t("backupTitle")}</h2>
+      </div>
+      <div class="grid-2">
+        <button class="ghost-pill" data-action="export-backup">⬇ ${t("backupSave")}</button>
+        <label class="ghost-pill backup-restore">⬆ ${t("backupRestore")}
+          <input type="file" accept="application/json,.json" data-import-backup />
+        </label>
+      </div>
+      <p class="photo-help">${t("backupHint")}</p>
+    </section>
+    <section class="section">
+      <div class="section-head">
         <h2 class="section-title">${t("cookStart")}</h2>
         <label class="field" style="width: 96px">
           <span>${t("servings")}</span>
@@ -1379,6 +1403,9 @@ function bindEvents() {
   document.querySelectorAll("[data-photo-input]").forEach((input) => {
     input.addEventListener("change", () => handlePhotoPick(input));
   });
+  document.querySelectorAll("[data-import-backup]").forEach((input) => {
+    input.addEventListener("change", () => importBackup(input));
+  });
   document.querySelectorAll("[data-auth-form]").forEach((form) => {
     form.addEventListener("submit", handleAuth);
   });
@@ -1538,7 +1565,56 @@ async function handleAction(event) {
     handlePhotoAnalyze(target.closest("form"));
     return;
   }
+  if (action === "export-backup") {
+    exportBackup();
+    target.textContent = `✓ ${t("backupDone")}`;
+    return;
+  }
   render();
+}
+
+function exportBackup() {
+  const payload = JSON.stringify({
+    app: "yorijambaengi",
+    version: 2,
+    savedAt: new Date().toISOString(),
+    inventory: state.inventory,
+  }, null, 2);
+  const blob = new Blob([payload], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `yorijambaengi-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function importBackup(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    const inv = data.inventory || data || {};
+    ["fridge", "freezer", "sauce", "room"].forEach((type) => {
+      const items = Array.isArray(inv[type]) ? inv[type] : [];
+      state.inventory[type] = state.inventory[type] || [];
+      items.forEach((it) => {
+        if (!it || !it.name) return;
+        if (state.inventory[type].some((x) => x.name === it.name)) return;
+        state.inventory[type].push({
+          ...it,
+          id: it.id || crypto.randomUUID(),
+          emoji: it.emoji || emojiFor(it.name, type),
+        });
+      });
+    });
+    saveState();
+    render();
+  } catch {
+    // Ignore an unreadable/invalid backup file.
+  }
 }
 
 function handlePhotoPick(input) {
