@@ -37,7 +37,10 @@ const ko = {
   photo: "카메라/사진",
   cameraPick: "카메라로 찍기",
   imagePick: "이미지 선택",
-  photoHelp: "사진을 넣고 이름을 적으면 저장할 때 맛, 사용 요리, 팁을 자동 메모로 채워요.",
+  photoHelp: "사진을 찍거나 고르면 아래에 미리보기가 떠요. ‘사진으로 구글 검색’으로 무슨 재료인지 확인한 뒤 이름·수량·메모를 적어 저장하세요.",
+  photoSearch: "사진으로 구글 검색",
+  photoClear: "사진 지우기",
+  photoSearchTitle: "이 식재료가 뭔지 알려줘",
   photoDetected: "사진 후보",
   analyzePhoto: "사진 설명 채우기",
   save: "저장",
@@ -162,7 +165,10 @@ const en = {
   photo: "Camera/photo",
   cameraPick: "Take photo",
   imagePick: "Choose image",
-  photoHelp: "Add a photo and name; saving fills taste, cooking uses, and tips automatically.",
+  photoHelp: "Take or pick a photo to see a preview below. Use ‘Search photo on Google’ to identify the ingredient, then add a name, amount and memo and save.",
+  photoSearch: "Search photo on Google",
+  photoClear: "Remove photo",
+  photoSearchTitle: "What ingredient is this?",
   photoDetected: "Photo guess",
   analyzePhoto: "Fill photo notes",
   save: "Save",
@@ -662,6 +668,8 @@ let recipe = null;
 let modal = null;
 // Rotates each "추천 받기" so a mode cycles through its dishes instead of repeating one.
 let dishCursor = {};
+// Photo chosen in the add form, kept across re-renders so the preview survives.
+let pendingPhoto = null; // { type, file, dataUrl }
 
 normalizeState();
 registerServiceWorker();
@@ -1062,6 +1070,15 @@ function renderAddForm(type) {
             </label>
           </div>
           <p class="photo-help" data-photo-status="${type}">${t("photoHelp")}</p>
+          ${pendingPhoto && pendingPhoto.type === type ? `
+            <div class="photo-preview">
+              <img src="${pendingPhoto.dataUrl}" alt="preview" />
+              <div class="photo-preview-actions">
+                <button type="button" class="pill" data-photo-search>🔍 ${t("photoSearch")}</button>
+                <button type="button" class="ghost-pill" data-photo-clear>${t("photoClear")}</button>
+              </div>
+            </div>
+          ` : ""}
         </div>
         <div class="field name-field">
           <label>${t("name")}</label>
@@ -1094,7 +1111,6 @@ function renderAddForm(type) {
           <label>${t("memo")}</label>
           <textarea name="memo" placeholder="${isSauce ? t("sauceMemoPlaceholder") : t("itemMemoPlaceholder")}"></textarea>
         </div>
-        <button class="ghost-pill" type="button" data-action="analyze-photo">${t("analyzePhoto")}</button>
         <button class="pill" type="submit">${t("save")}</button>
       </form>
     </section>
@@ -1427,6 +1443,12 @@ function bindEvents() {
   document.querySelectorAll("[data-import-backup]").forEach((input) => {
     input.addEventListener("change", () => importBackup(input));
   });
+  document.querySelectorAll("[data-photo-search]").forEach((button) => {
+    button.addEventListener("click", () => searchPhotoOnGoogle());
+  });
+  document.querySelectorAll("[data-photo-clear]").forEach((button) => {
+    button.addEventListener("click", () => { pendingPhoto = null; render(); });
+  });
   document.querySelectorAll("[data-auth-form]").forEach((form) => {
     form.addEventListener("submit", handleAuth);
   });
@@ -1590,10 +1612,6 @@ async function handleAction(event) {
     target.textContent = t("copied");
     return;
   }
-  if (action === "analyze-photo") {
-    handlePhotoAnalyze(target.closest("form"));
-    return;
-  }
   if (action === "export-backup") {
     exportBackup();
     target.textContent = `✓ ${t("backupDone")}`;
@@ -1646,36 +1664,36 @@ async function importBackup(input) {
   }
 }
 
-function handlePhotoPick(input) {
-  const form = input.closest("form");
+async function handlePhotoPick(input) {
+  const type = input.dataset.photoInput;
   const file = input.files?.[0];
-  if (!form || !file) return;
-  applyPhotoGuess(form, file);
+  if (!file) return;
+  const dataUrl = await fileToDataUrl(file);
+  pendingPhoto = { type, file, dataUrl };
+  render();
 }
 
-function handlePhotoAnalyze(form) {
-  if (!form) return;
-  const file = selectedPhotoFile(new FormData(form));
-  applyPhotoGuess(form, file);
-}
-
-function applyPhotoGuess(form, file) {
-  const type = form.dataset.form;
-  const nameInput = form.querySelector("[name='name']");
-  const categoryInput = form.querySelector("[name='category']");
-  const memoInput = form.querySelector("[name='memo']");
-  const status = form.querySelector("[data-photo-status]");
-  const candidate = inferNameFromPhoto(file?.name || "", type) || knownItemKey(nameInput?.value || "");
-  const name = candidate || String(nameInput?.value || "").trim();
-  if (candidate && nameInput && !nameInput.value.trim()) nameInput.value = candidate;
-  const info = buildSavedItemInfo(name, type, memoInput?.value || "");
-  if (categoryInput && !categoryInput.value.trim()) categoryInput.value = info.category;
-  if (memoInput && (!memoInput.value.trim() || candidate)) memoInput.value = info.memo;
-  if (status) {
-    status.textContent = candidate
-      ? `${t("photoDetected")}: ${displayName(candidate)} · ${info.category}`
-      : t("photoHelp");
+// Identify the ingredient from the photo via Google: share the image (mobile
+// share sheet → Google Lens) or fall back to opening Google Lens to paste it.
+async function searchPhotoOnGoogle() {
+  if (!pendingPhoto) return;
+  const { file } = pendingPhoto;
+  try {
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: t("photoSearchTitle"), text: t("photoSearchTitle") });
+      return;
+    }
+  } catch {
+    // user cancelled or share unsupported — fall through to Lens
   }
+  try {
+    if (file && navigator.clipboard && window.ClipboardItem) {
+      await navigator.clipboard.write([new ClipboardItem({ [file.type]: file })]);
+    }
+  } catch {
+    // clipboard may be blocked; the Lens page still opens for manual upload
+  }
+  window.open("https://lens.google.com/", "_blank", "noopener,noreferrer");
 }
 
 async function handleAddItem(event) {
@@ -1685,8 +1703,7 @@ async function handleAddItem(event) {
   const data = new FormData(form);
   const name = String(data.get("name") || "").trim();
   if (!name) return;
-  const file = selectedPhotoFile(data);
-  const photo = file && file.size ? await fileToDataUrl(file) : null;
+  const photo = (pendingPhoto && pendingPhoto.type === type) ? pendingPhoto.dataUrl : null;
   let memo = String(data.get("memo") || "").trim();
   let category = String(data.get("category") || "").trim();
   const info = buildSavedItemInfo(name, type, memo);
@@ -1696,6 +1713,7 @@ async function handleAddItem(event) {
   state.inventory[type].unshift(
     item(name, Number(data.get("amount")) || 0, String(data.get("unit") || "개"), category, memo, photo, emoji)
   );
+  pendingPhoto = null;
   saveState();
   render();
   // The new item lands below the tall add form — scroll it into view so the
