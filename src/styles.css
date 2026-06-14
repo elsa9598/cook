@@ -72,11 +72,14 @@ button {
   overflow: hidden;
   box-shadow: 0 0 32px rgba(0, 0, 0, 0.12);
   padding-top: env(safe-area-inset-top);
+  /* Flex column: header + panel + scrolling content + in-flow bottom nav, so
+     the content never hides behind the nav (no dvh/fixed-bar miscalculation). */
+  display: flex;
+  flex-direction: column;
 }
 
 .top-auth {
-  position: sticky;
-  top: 0;
+  flex: 0 0 auto;
   z-index: 30;
   height: var(--top-auth-h);
   display: grid;
@@ -147,8 +150,7 @@ button {
 }
 
 .page-panel {
-  position: sticky;
-  top: var(--top-auth-h);
+  flex: 0 0 auto;
   z-index: 20;
   padding: 14px 56px 16px;
   text-align: center;
@@ -207,11 +209,12 @@ button {
 }
 
 .content {
-  height: calc(100dvh - var(--top-auth-h) - var(--page-panel-h));
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  padding: 16px 16px calc(130px + env(safe-area-inset-bottom));
+  padding: 16px 16px 24px;
 }
 
 .hero-band {
@@ -1054,19 +1057,15 @@ button {
 }
 
 .bottom-nav {
-  position: fixed;
-  left: 50%;
-  bottom: 0;
+  flex: 0 0 auto;
   z-index: 40;
-  width: min(100vw, 430px);
-  transform: translateX(-50%);
+  width: 100%;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 0;
   background: var(--white);
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.12);
-  /* Keep the tabs clearly above the device nav buttons even when the OS
-     reports a 0 safe-area inset (e.g. Android 3-button nav). */
+  /* In-flow at the bottom of the flex column; pad for the device nav bar. */
   padding: 7px 6px calc(10px + env(safe-area-inset-bottom));
 }
 
@@ -1362,7 +1361,7 @@ button {
   }
 
   .content {
-    padding: 18px 16px calc(150px + env(safe-area-inset-bottom));
+    padding: 18px 16px 24px;
   }
 
   .hero-title {
