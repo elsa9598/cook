@@ -102,6 +102,8 @@ const ko = {
   dietTotal: "오늘 합계",
   dietGood: "오늘 목표 영양을 채웠어요! 👍",
   dietLackPrefix: "부족한 영양소",
+  dietAnalyze: "구글로 칼로리·영양 분석",
+  dietAnalyzeHint: "오늘 먹은 걸 다 추가한 뒤 누르면, 하루 식단 전체를 구글에서 칼로리·영양소·부족분으로 분석해줘요.",
   cookbookTitle: "내 요리책",
   cookbookEmpty: "아직 만든 요리가 없어요. 요리 종류를 골라 PDF를 만들면 여기에 모여요.",
   cookbookHint: "메뉴별로 모은 내 요리 — 누르면 펼쳐보고 PDF로 저장할 수 있어요.",
@@ -276,6 +278,8 @@ const en = {
   dietTotal: "Today total",
   dietGood: "You met today's nutrition goals! 👍",
   dietLackPrefix: "Low on",
+  dietAnalyze: "Analyze calories & nutrients on Google",
+  dietAnalyzeHint: "Add everything you ate today, then tap to analyze the whole day's calories, nutrients and shortfalls on Google.",
   cookbookTitle: "My cookbook",
   cookbookEmpty: "No recipes yet. Pick a dish type and make a PDF — it shows up here.",
   cookbookHint: "Your recipes grouped by menu — tap to open and save as PDF.",
@@ -1302,28 +1306,22 @@ function renderCookbook() {
   return `<section class="section">${cloudBtn}</section><p class="cookbook-hint">${t("cookbookHint")}</p>${body}${trashSection}`;
 }
 
-function dietTotals(dateStr) {
-  const d = state.diet[dateStr] || {};
-  let kcal = 0, carb = 0, protein = 0, fat = 0, water = 0;
-  for (const [cat] of DIET_CATS) {
-    for (const e of d[cat] || []) {
-      kcal += +e.kcal || 0; carb += +e.carb || 0; protein += +e.protein || 0; fat += +e.fat || 0;
-      if (cat === "water") water += +e.amount || 0;
+// Unified daily food list (migrates the old per-meal structure if present).
+function dietItems(dateStr) {
+  const day = state.diet[dateStr];
+  if (!day) return [];
+  if (Array.isArray(day.items)) return day.items;
+  const items = [];
+  for (const [cat, label] of DIET_CATS) {
+    for (const e of day[cat] || []) {
+      items.push({ id: e.id || `${cat}-${items.length}`, name: e.name || label.replace(/^\S+\s/, ""), amount: e.amount || "", kcal: e.kcal || "" });
     }
   }
-  return { kcal, carb, protein, fat, water };
+  day.items = items;
+  return items;
 }
-
-function dietDeficiency(dateStr) {
-  const tot = dietTotals(dateStr);
-  const tgt = DIET_TARGETS;
-  const lack = [];
-  if (tot.kcal < tgt.kcal * 0.8) lack.push(`칼로리 ${Math.round(tgt.kcal - tot.kcal)}kcal`);
-  if (tot.protein < tgt.protein) lack.push(`단백질 ${Math.round(tgt.protein - tot.protein)}g`);
-  if (tot.carb < tgt.carb * 0.7) lack.push(`탄수화물 ${Math.round(tgt.carb - tot.carb)}g`);
-  if (tot.fat < tgt.fat * 0.7) lack.push(`지방 ${Math.round(tgt.fat - tot.fat)}g`);
-  if (tot.water < tgt.water) lack.push(`물 ${Math.round(tgt.water - tot.water)}ml`);
-  return lack;
+function dietTotalKcal(dateStr) {
+  return dietItems(dateStr).reduce((s, e) => s + (+e.kcal || 0), 0);
 }
 
 function renderDiet() {
@@ -1337,52 +1335,29 @@ function renderDiet() {
   for (let i = 0; i < startDow; i++) cells += `<div class="cal-cell empty"></div>`;
   for (let day = 1; day <= daysInMonth; day++) {
     const ds = `${dietView.y}-${String(dietView.m + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    const kcal = dietTotals(ds).kcal;
+    const n = dietItems(ds).length;
     const cls = ["cal-cell"];
     if (ds === today) cls.push("today");
     if (ds === dietDate) cls.push("sel");
     cells += `<button class="${cls.join(" ")}" data-diet-day="${ds}">
       <span class="cal-num">${day}</span>
-      ${kcal ? `<span class="cal-kcal">${Math.round(kcal)}</span>` : ""}
+      ${n ? `<span class="cal-kcal">${n}개</span>` : ""}
     </button>`;
   }
-  const tot = dietTotals(dietDate);
-  const lack = dietDeficiency(dietDate);
-  const d = state.diet[dietDate] || {};
-  const catBlocks = DIET_CATS.map(([cat, label]) => {
-    const isDrink = cat === "water" || cat === "coffee";
-    const items = (d[cat] || [])
-      .map(
-        (e) => `<div class="diet-item">
-          <span class="diet-item-name">${escapeHtml(e.name || label.slice(2))}</span>
-          <span class="diet-item-meta">${e.amount ? escapeHtml(String(e.amount)) + (isDrink ? "ml" : "") : ""}${e.kcal ? ` · ${e.kcal}kcal` : ""}${e.protein ? ` · 단${e.protein}` : ""}${e.carb ? ` · 탄${e.carb}` : ""}${e.fat ? ` · 지${e.fat}` : ""}</span>
-          <button class="diet-del" data-diet-del="${cat}:${e.id}" title="삭제">✕</button>
-        </div>`
-      )
-      .join("");
-    const macroFields = isDrink
-      ? `<input name="kcal" type="number" min="0" placeholder="kcal" />`
-      : `<input name="kcal" type="number" min="0" placeholder="kcal" />
-         <input name="carb" type="number" min="0" placeholder="탄g" />
-         <input name="protein" type="number" min="0" placeholder="단g" />
-         <input name="fat" type="number" min="0" placeholder="지g" />`;
-    return `
-      <div class="diet-cat">
-        <div class="diet-cat-title">${label}</div>
-        ${items || `<p class="diet-empty">기록 없음</p>`}
-        <form class="diet-add" data-diet-add="${cat}">
-          <div class="diet-add-row">
-            <input name="name" placeholder="${isDrink ? label.slice(2) : t("dietAddName")}" ${isDrink ? "" : "required"} />
-            <input name="amount" type="number" min="0" placeholder="${isDrink ? "ml" : t("dietAddAmount")}" />
-          </div>
-          <div class="diet-add-row">
-            ${macroFields}
-            <button type="submit" class="ghost-pill">＋</button>
-          </div>
-        </form>
-      </div>`;
-  }).join("");
-  const [y, m, dd] = dietDate.split("-");
+  const items = dietItems(dietDate);
+  const totalK = dietTotalKcal(dietDate);
+  const list = items.length
+    ? items
+        .map(
+          (e) => `<div class="diet-item">
+            <span class="diet-item-name">${escapeHtml(e.name)}</span>
+            <span class="diet-item-meta">${e.amount ? escapeHtml(String(e.amount)) : ""}${e.kcal ? ` · ${e.kcal}kcal` : ""}</span>
+            <button class="diet-del" data-diet-del="${e.id}" title="삭제">✕</button>
+          </div>`
+        )
+        .join("")
+    : `<p class="diet-empty">오늘 먹은 음식을 자유롭게 추가하세요 (물·간식·커피 포함).</p>`;
+  const [, m, dd] = dietDate.split("-");
   return `
     <section class="section">
       <div class="cal-head">
@@ -1394,15 +1369,18 @@ function renderDiet() {
       <div class="cal-grid">${cells}</div>
     </section>
     <section class="section card">
-      <h2 class="section-title">📋 ${Number(m)}월 ${Number(dd)}일 (${dow[new Date(dietDate).getDay()]})</h2>
-      <div class="diet-total">
-        <strong>${t("dietTotal")}</strong>
-        <span>🔥 ${Math.round(tot.kcal)} / ${DIET_TARGETS.kcal}kcal · 단 ${Math.round(tot.protein)}g · 탄 ${Math.round(tot.carb)}g · 지 ${Math.round(tot.fat)}g · 💧 ${Math.round(tot.water)}/${DIET_TARGETS.water}ml</span>
-      </div>
-      <div class="diet-lack ${lack.length ? "warn" : "ok"}">
-        ${lack.length ? `⚠️ ${t("dietLackPrefix")}: ${lack.join(", ")}` : t("dietGood")}
-      </div>
-      ${catBlocks}
+      <h2 class="section-title">📋 ${Number(m)}월 ${Number(dd)}일 (${dow[new Date(dietDate).getDay()]}) 먹은 것</h2>
+      <div class="diet-list">${list}</div>
+      <form class="diet-add" data-diet-add>
+        <div class="diet-add-row">
+          <input name="name" placeholder="${t("dietAddName")} (예: 현미밥 1공기 / 물 500ml / 아메리카노)" required />
+          <input name="kcal" type="number" min="0" placeholder="kcal" />
+          <button type="submit" class="ghost-pill">＋</button>
+        </div>
+      </form>
+      ${totalK ? `<div class="diet-total"><strong>${t("dietTotal")}</strong><span>🔥 ${Math.round(totalK)}kcal (입력값 합계)</span></div>` : ""}
+      <button class="pill" style="width:100%;margin-top:10px" data-diet-search ${items.length ? "" : "disabled"}>🔎 ${t("dietAnalyze")}</button>
+      <p class="cookbook-hint" style="margin-top:6px">${t("dietAnalyzeHint")}</p>
     </section>
   `;
 }
@@ -2356,9 +2334,9 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-diet-del]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const [cat, id] = btn.dataset.dietDel.split(":");
-      const day = state.diet[dietDate];
-      if (day && Array.isArray(day[cat])) day[cat] = day[cat].filter((e) => String(e.id) !== id);
+      const id = btn.dataset.dietDel;
+      const items = dietItems(dietDate);
+      state.diet[dietDate].items = items.filter((e) => String(e.id) !== id);
       saveState();
       render();
     });
@@ -2366,25 +2344,29 @@ function bindEvents() {
   document.querySelectorAll("[data-diet-add]").forEach((form) => {
     form.addEventListener("submit", (e) => {
       e.preventDefault();
-      const cat = form.dataset.dietAdd;
       const f = new FormData(form);
       const name = String(f.get("name") || "").trim();
-      const amount = f.get("amount");
+      if (!name) return;
       const entry = {
         id: `${Date.now()}-${Math.round(Math.random() * 1e4)}`,
         name,
-        amount: amount ? Number(amount) : "",
+        amount: "",
         kcal: f.get("kcal") ? Number(f.get("kcal")) : "",
-        carb: f.get("carb") ? Number(f.get("carb")) : "",
-        protein: f.get("protein") ? Number(f.get("protein")) : "",
-        fat: f.get("fat") ? Number(f.get("fat")) : "",
       };
-      if (!name && !entry.amount && !entry.kcal) return;
+      dietItems(dietDate); // ensure migrated structure
       state.diet[dietDate] = state.diet[dietDate] || {};
-      state.diet[dietDate][cat] = state.diet[dietDate][cat] || [];
-      state.diet[dietDate][cat].push(entry);
+      state.diet[dietDate].items = state.diet[dietDate].items || [];
+      state.diet[dietDate].items.push(entry);
       saveState();
       render();
+    });
+  });
+  document.querySelectorAll("[data-diet-search]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const foods = dietItems(dietDate).map((e) => e.name).filter(Boolean).join(", ");
+      if (!foods) return;
+      const q = encodeURIComponent(`${foods} — 하루 총 칼로리와 영양성분(탄수화물·단백질·지방·식이섬유·비타민·무기질) 계산하고 부족한 영양소 알려줘`);
+      window.open(`https://www.google.com/search?q=${q}`, "_blank", "noopener,noreferrer");
     });
   });
   document.querySelectorAll("[data-recipe-pdf]").forEach((btn) => {

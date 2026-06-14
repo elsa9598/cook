@@ -1299,6 +1299,7 @@ button {
 .diet-lack { padding: 8px 10px; border-radius: var(--radius-card); font-size: 13px; margin-bottom: 12px; }
 .diet-lack.warn { background: rgba(226, 39, 24, 0.12); border: 1px solid var(--m-red); color: var(--ink); }
 .diet-lack.ok { background: rgba(15, 163, 54, 0.12); border: 1px solid #0fa336; color: var(--ink); }
+.diet-list { margin-bottom: 8px; }
 .diet-cat { border-top: 1px solid var(--hairline); padding-top: 8px; margin-top: 8px; }
 .diet-cat-title { font-weight: 700; color: var(--ink); margin-bottom: 6px; }
 .diet-item { display: flex; align-items: center; gap: 6px; padding: 4px 0; font-size: 13px; }
