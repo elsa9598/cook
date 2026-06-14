@@ -1089,15 +1089,11 @@ function trialDay() {
 }
 
 function canUseFeatures() {
-  return Boolean(state.user) || !isTrialExpired();
+  return true; // 로그인/체험 게이트 제거 — 모든 기능 오픈
 }
 
 function maybeShowSignupPopup() {
-  if (state.user || isTrialExpired()) return;
-  const today = new Date().toISOString().slice(0, 10);
-  if (localStorage.getItem(POPUP_KEY) !== today) {
-    modal = "signup";
-  }
+  // 로그인/가입 제거 — 가입 유도 팝업 사용 안 함.
 }
 
 function render() {
@@ -1116,12 +1112,10 @@ function render() {
 }
 
 function renderTopAuth() {
-  const userLabel = state.user ? state.user.email.split("@")[0] : t("login");
-  const authCenter = state.user ? t("logout") : t("signup");
+  // 로그인/가입 제거 — 언어 토글만 유지.
   return `
     <header class="top-auth">
-      <button class="ghost-pill auth-left" data-action="login">${userLabel}</button>
-      <button class="${state.user ? "ghost-pill" : "dark-pill"} auth-center" data-action="${state.user ? "logout" : "signup"}">${authCenter}</button>
+      <span class="auth-brand">요리잼뱅이</span>
       <button class="icon-pill auth-right" data-action="toggle-lang">${t("lang")}</button>
     </header>
   `;
@@ -1175,16 +1169,7 @@ function renderCurrentPage() {
 }
 
 function renderHome() {
-  const locked = !canUseFeatures();
   return `
-    <section class="trial-strip">
-      <div>
-        <strong>${state.user ? "Premium" : locked ? t("signupRequired") : `${t("trial")} ${trialDay()}/3`}</strong>
-        <span>${state.user ? t("joinedCopy") : t("trialCopy")}</span>
-      </div>
-      ${state.user ? "" : `<button class="pill" data-action="signup">${t("joinNow")}</button>`}
-    </section>
-    ${locked ? renderGate() : ""}
     <section class="section">
       <div class="section-head">
         <h2 class="section-title">${t("pickType")}</h2>
