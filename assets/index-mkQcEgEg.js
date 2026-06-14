@@ -45,10 +45,9 @@
       </div>
       <div class="cook-grid">
         ${h.map(([e,t,n,r,i,a])=>`
-              <button class="cook-card" data-cook="${e}">
+              <button class="cook-card" data-cook="${e}" title="${b.lang===`ko`?i:a}">
                 <span class="cook-emoji">${r}</span>
                 <strong>${b.lang===`ko`?t:n}</strong>
-                <span>${b.lang===`ko`?i:a}</span>
               </button>
             `).join(``)}
       </div>
