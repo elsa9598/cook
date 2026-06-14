@@ -137,6 +137,8 @@ const ko = {
   clearEmpty: "냉장고·냉동고에 재료를 먼저 넣어주세요.",
   recipeCarousel: "요리 고르기",
   pickIngredients: "재료 체크",
+  dishLabel: "만들고 싶은 요리 / 살 재료",
+  dishPlaceholder: "예: 단호박식빵 (없는 재료도 검색돼요)",
   searchRecipe: "구글에서 요리법 검색",
   recipeMemoLabel: "요리법 (검색해서 복사·붙여넣기)",
   visualPromptLabel: "영어 비주얼 프롬프트 (이미지 생성용)",
@@ -280,6 +282,8 @@ const en = {
   clearEmpty: "Add fridge/freezer items first.",
   recipeCarousel: "Choose a dish",
   pickIngredients: "Check ingredients",
+  dishLabel: "Dish to make / items to buy",
+  dishPlaceholder: "e.g. pumpkin bread (searches even if you lack it)",
   searchRecipe: "Search recipe on Google",
   recipeMemoLabel: "Recipe (search, copy & paste)",
   visualPromptLabel: "English visual prompt (for image gen)",
@@ -713,6 +717,7 @@ let sheetMode = null;
 let sheetChecked = new Set(); // "type:id"
 let sheetMemo = "";
 let sheetImage = null; // dataUrl
+let sheetDish = ""; // 만들고 싶은 요리/살 재료 — 없는 재료도 검색·제목에 사용
 
 // Always-present basic seasonings (fixed, can't be deleted). Defined before
 // normalizeState() runs so ensureStaples() can read it. Spices/sauces beyond
@@ -1349,6 +1354,12 @@ function renderCookSheet() {
       </div>`;
   }).join("");
   return `
+    <section class="section card">
+      <div class="field">
+        <label>${t("dishLabel")}</label>
+        <input type="text" data-sheet-dish value="${escapeAttr(sheetDish)}" placeholder="${escapeAttr(t("dishPlaceholder"))}" />
+      </div>
+    </section>
     <section class="section">
       <div class="section-head"><h2 class="section-title">${t("pickIngredients")}</h2></div>
       ${groupsHtml}
@@ -1379,6 +1390,8 @@ function renderCookSheet() {
 function exportSheetPdf() {
   const mode = sheetMode;
   const modeKo = (cookModes.find((m) => m[0] === mode) || [])[1] || "요리";
+  const dish = (sheetDish || "").trim();
+  const title = dish ? escapeHtml(dish) : `${modeKo} 요리`;
   const memo = escapeHtml(sheetMemo || "").replaceAll("\n", "<br>");
 
   // Merge checked pantry items (with their stocked amount) and ingredients
@@ -1438,7 +1451,7 @@ function exportSheetPdf() {
     </style></head>
     <body>
       <div class="m-stripe"></div>
-      <h1>${modeKo} 요리</h1>
+      <h1>${title}</h1>
       <h2>필수재료</h2>
       ${essential.length ? `<ul>${rowHtml(essential)}</ul>` : "<p>-</p>"}
       <h2>만드는 방법</h2>
@@ -1805,13 +1818,26 @@ function bindEvents() {
   document.querySelectorAll("[data-sheet-memo]").forEach((ta) => {
     ta.addEventListener("input", () => { sheetMemo = ta.value; });
   });
+  document.querySelectorAll("[data-sheet-dish]").forEach((inp) => {
+    inp.addEventListener("input", () => {
+      sheetDish = inp.value;
+      const p = document.querySelector("[data-sheet-prompt]");
+      if (p) p.value = buildSheetPrompt(sheetMode, sheetCheckedNames());
+    });
+  });
   document.querySelectorAll("[data-sheet-search]").forEach((button) => {
     button.addEventListener("click", () => {
       const memoEl = document.querySelector("[data-sheet-memo]");
       if (memoEl) sheetMemo = memoEl.value;
+      const dishEl = document.querySelector("[data-sheet-dish]");
+      if (dishEl) sheetDish = dishEl.value;
       const modeKo = (cookModes.find((m) => m[0] === sheetMode) || [])[1] || "";
+      const dish = sheetDish.trim();
       const names = sheetCheckedNames().map(displayName).join(" ");
-      const q = encodeURIComponent(`${modeKo} 요리법 ${names}`.trim());
+      // 입력한 요리명이 있으면 그걸로 검색(없는 재료도 OK), 없으면 모드+내 재료로.
+      const q = encodeURIComponent(
+        (dish ? `${dish} 만드는법 레시피` : `${modeKo} 요리법 ${names}`).trim()
+      );
       window.open(`https://www.google.com/search?q=${q}`, "_blank", "noopener,noreferrer");
     });
   });
@@ -1835,6 +1861,8 @@ function bindEvents() {
     button.addEventListener("click", () => {
       const memoEl = document.querySelector("[data-sheet-memo]");
       if (memoEl) sheetMemo = memoEl.value;
+      const dishEl = document.querySelector("[data-sheet-dish]");
+      if (dishEl) sheetDish = dishEl.value;
       exportSheetPdf();
     });
   });
@@ -2396,6 +2424,7 @@ function openCookSheet(mode) {
   sheetChecked = new Set();
   sheetMemo = "";
   sheetImage = null;
+  sheetDish = "";
   selectedTab = "cooksheet";
   render();
 }
@@ -2411,7 +2440,11 @@ function sheetCheckedNames() {
 function buildSheetPrompt(mode, names) {
   const en = names.map((n) => ingredientTranslations[n] || EN_NAME[n] || n).join(", ");
   const modeEn = (cookModes.find((m) => m[0] === mode) || [])[2] || "home cooking";
-  return `A mouthwatering ${modeEn} dish made with ${en || "home ingredients"}, plated on a clean dish, glossy textures, fresh garnish, appetizing colors, realistic home-kitchen lighting, high detail, no text, no watermark, no hands. Generate in 1:1 square aspect ratio (1:1 비율로 생성).`;
+  const dish = (sheetDish || "").trim();
+  const subject = dish
+    ? `a mouthwatering dish of "${dish}"${en ? ` made with ${en}` : ""}`
+    : `a mouthwatering ${modeEn} dish made with ${en || "home ingredients"}`;
+  return `A ${subject}, plated on a clean dish, glossy textures, fresh garnish, appetizing colors, realistic home-kitchen lighting, high detail, no text, no watermark, no hands. Generate in 1:1 square aspect ratio (1:1 비율로 생성).`;
 }
 
 function openCarousel(mode) {
