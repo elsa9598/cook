@@ -785,6 +785,29 @@ function extractMemoIngredients(memo) {
   return found.filter((f) => !names.some((o) => o !== f.name && o.includes(f.name)));
 }
 
+// Turn a pasted (often run-together) recipe into ordered cooking steps.
+function splitRecipeSteps(memo) {
+  let s = String(memo || "").replace(/\r/g, "").trim();
+  if (!s) return [];
+  // Jump to the method section when a header is present.
+  const headerRe = /(만드는\s*방법|만드는\s*법|조리\s*방법|조리\s*순서|조리법|레시피|요리법|순서|과정)\s*[:：]?/;
+  const h = s.search(headerRe);
+  if (h >= 0) s = s.slice(h).replace(headerRe, "").trim();
+  let parts;
+  if (/(^|\s)\d+\s*[.)]\s/.test(s) || /[①-⑳]/.test(s)) {
+    parts = s.split(/\s*(?:\d+\s*[.)]|[①-⑳])\s*/); // re-use existing numbering
+  } else {
+    parts = [];
+    for (const line of s.split(/\n+/)) {
+      for (const x of line.split(/(?<=다\.)|(?<=요\.)|(?<=[.!?])(?=\s)/)) parts.push(x);
+    }
+  }
+  return parts
+    .map((x) => x.replace(/^[\s·•\-–—]+/, "").trim())
+    .filter(Boolean)
+    .filter((x) => !/^(재료|준비물|필수재료|재료\s*준비)\s*[:：]/.test(x));
+}
+
 normalizeState();
 registerServiceWorker();
 requestPersistentStorage();
@@ -1378,6 +1401,7 @@ function exportSheetPdf() {
   const allItems = [...byName.values()];
   const ingList = allItems.filter((e) => !SEASONING_NAMES.has(e.name));
   const seaList = allItems.filter((e) => SEASONING_NAMES.has(e.name));
+  const essential = [...ingList, ...seaList]; // 재료 먼저, 양념 뒤
   const rowHtml = (list) =>
     list
       .map(
@@ -1385,6 +1409,10 @@ function exportSheetPdf() {
           `<li>${escapeHtml(displayName(e.name))}${e.amount ? ` <span class="amt">${escapeHtml(e.amount)}</span>` : ""}</li>`
       )
       .join("");
+  const steps = splitRecipeSteps(sheetMemo);
+  const stepsHtml = steps.length
+    ? `<ol class="steps">${steps.map((st) => `<li>${escapeHtml(st)}</li>`).join("")}</ol>`
+    : `<div class="memo">${memo || "-"}</div>`;
   const imgHtml = sheetImage
     ? `<div class="imgwrap"><img src="${sheetImage}" /></div>`
     : `<div class="imgwrap"><div class="img-ph">${t("imagePlaceholder")}</div></div>`;
@@ -1400,6 +1428,9 @@ function exportSheetPdf() {
       li { color: #e6e6e6; font-size: 15px; line-height: 1.6; margin: 3px 0; }
       .amt { color: #1c69d4; font-weight: 700; margin-left: 6px; }
       .memo { white-space: pre-wrap; font-size: 16px; line-height: 1.75; color: #e6e6e6; }
+      ol.steps { margin: 0; padding: 0; list-style: none; counter-reset: step; }
+      ol.steps li { counter-increment: step; position: relative; padding-left: 34px; margin: 0 0 11px; font-size: 16px; line-height: 1.7; color: #e6e6e6; }
+      ol.steps li::before { content: counter(step); position: absolute; left: 0; top: 1px; width: 24px; height: 24px; background: #1c69d4; color: #fff; font-weight: 700; font-size: 13px; text-align: center; line-height: 24px; }
       .m-stripe { height: 4px; background: linear-gradient(90deg,#0066b1 0 33%,#1c69d4 33% 66%,#e22718 66% 100%); margin-bottom: 16px; }
       .imgwrap { text-align: center; margin: 4px 0 0; }
       .imgwrap img { display: block; width: 100%; margin: 0 auto; border: 1px solid #3c3c3c; }
@@ -1408,11 +1439,10 @@ function exportSheetPdf() {
     <body>
       <div class="m-stripe"></div>
       <h1>${modeKo} 요리</h1>
-      <h2>재료</h2>
-      ${ingList.length ? `<ul>${rowHtml(ingList)}</ul>` : "<p>-</p>"}
-      ${seaList.length ? `<h2>양념</h2><ul>${rowHtml(seaList)}</ul>` : ""}
-      <h2>요리법</h2>
-      <div class="memo">${memo || "-"}</div>
+      <h2>필수재료</h2>
+      ${essential.length ? `<ul>${rowHtml(essential)}</ul>` : "<p>-</p>"}
+      <h2>만드는 방법</h2>
+      ${stepsHtml}
       <h2>비주얼 이미지</h2>
       ${imgHtml}
       <script>window.onload=function(){setTimeout(function(){window.print();},300);};<\/script>
