@@ -1415,45 +1415,45 @@ function exportSheetPdf() {
   const ingList = allItems.filter((e) => !SEASONING_NAMES.has(e.name));
   const seaList = allItems.filter((e) => SEASONING_NAMES.has(e.name));
   const essential = [...ingList, ...seaList]; // 재료 먼저, 양념 뒤
-  const rowHtml = (list) =>
-    list
-      .map(
-        (e) =>
-          `<li>${escapeHtml(displayName(e.name))}${e.amount ? ` <span class="amt">${escapeHtml(e.amount)}</span>` : ""}</li>`
-      )
-      .join("");
+  const essentialInline = essential
+    .map(
+      (e) =>
+        `<span class="ing">${escapeHtml(displayName(e.name))}${e.amount ? `<span class="amt">${escapeHtml(e.amount)}</span>` : ""}</span>`
+    )
+    .join("");
   const steps = splitRecipeSteps(sheetMemo);
   const stepsHtml = steps.length
     ? `<ol class="steps">${steps.map((st) => `<li>${escapeHtml(st)}</li>`).join("")}</ol>`
     : `<div class="memo">${memo || "-"}</div>`;
   const imgHtml = sheetImage
-    ? `<div class="imgwrap"><img src="${sheetImage}" /></div>`
-    : `<div class="imgwrap"><div class="img-ph">${t("imagePlaceholder")}</div></div>`;
+    ? `<div class="frame"><img src="${sheetImage}" /></div>`
+    : `<div class="img-ph">${t("imagePlaceholder")}</div>`;
   const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${modeKo} 요리</title>
     <style>
-      @page { size: A4; margin: 14mm; }
+      @page { size: A4; margin: 12mm; }
       * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       html, body { background: #000; margin: 0; padding: 0; }
-      body { font-family: "Inter", "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; color: #bbbbbb; line-height: 1.5; }
-      h1 { font-size: 30px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px; margin: 0 0 14px; }
-      h2 { font-size: 13px; font-weight: 700; color: #ffffff; letter-spacing: 1.2px; margin: 22px 0 10px; padding-bottom: 7px; border-bottom: 1px solid #3c3c3c; }
-      ul { margin: 0; padding-left: 18px; }
-      li { color: #e6e6e6; font-size: 15px; line-height: 1.6; margin: 3px 0; }
-      .amt { color: #1c69d4; font-weight: 700; margin-left: 6px; }
-      .memo { white-space: pre-wrap; font-size: 16px; line-height: 1.75; color: #e6e6e6; }
+      body { font-family: "Inter", "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; color: #bbbbbb; line-height: 1.4; }
+      h1 { font-size: 26px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px; margin: 0 0 10px; }
+      h2 { font-size: 12px; font-weight: 700; color: #ffffff; letter-spacing: 1.2px; margin: 13px 0 7px; padding-bottom: 5px; border-bottom: 1px solid #3c3c3c; }
+      .ingline { font-size: 14px; line-height: 1.7; color: #e6e6e6; }
+      .ing { display: inline-block; white-space: nowrap; margin: 0 4px 4px 0; }
+      .ing + .ing::before { content: "· "; color: #6b6b6b; }
+      .amt { color: #1c69d4; font-weight: 700; margin-left: 3px; }
+      .memo { white-space: pre-wrap; font-size: 14px; line-height: 1.5; color: #e6e6e6; }
       ol.steps { margin: 0; padding: 0; list-style: none; counter-reset: step; }
-      ol.steps li { counter-increment: step; position: relative; padding-left: 34px; margin: 0 0 11px; font-size: 16px; line-height: 1.7; color: #e6e6e6; }
-      ol.steps li::before { content: counter(step); position: absolute; left: 0; top: 1px; width: 24px; height: 24px; background: #1c69d4; color: #fff; font-weight: 700; font-size: 13px; text-align: center; line-height: 24px; }
-      .m-stripe { height: 4px; background: linear-gradient(90deg,#0066b1 0 33%,#1c69d4 33% 66%,#e22718 66% 100%); margin-bottom: 16px; }
-      .imgwrap { text-align: center; margin: 4px 0 0; }
-      .imgwrap img { display: block; width: 100%; margin: 0 auto; border: 1px solid #3c3c3c; }
-      .img-ph { height: 80mm; border: 1px dashed #3c3c3c; display: flex; align-items: center; justify-content: center; color: #7e7e7e; }
+      ol.steps li { counter-increment: step; position: relative; padding-left: 30px; margin: 0 0 6px; font-size: 14px; line-height: 1.5; color: #e6e6e6; }
+      ol.steps li::before { content: counter(step); position: absolute; left: 0; top: 1px; width: 21px; height: 21px; background: #1c69d4; color: #fff; font-weight: 700; font-size: 12px; text-align: center; line-height: 21px; }
+      .m-stripe { height: 4px; background: linear-gradient(90deg,#0066b1 0 33%,#1c69d4 33% 66%,#e22718 66% 100%); margin-bottom: 12px; }
+      .frame { width: 70%; margin: 6px auto 0; padding: 12px; background: linear-gradient(135deg,#a9763f 0%,#7a4f25 45%,#5c3a18 100%); border: 1px solid #3e2710; border-radius: 3px; box-shadow: inset 0 0 0 2px rgba(255,255,255,.12); }
+      .frame img { display: block; width: 100%; border: 5px solid #f4ecd8; }
+      .img-ph { width: 70%; height: 60mm; margin: 6px auto 0; border: 1px dashed #3c3c3c; display: flex; align-items: center; justify-content: center; color: #7e7e7e; }
     </style></head>
     <body>
       <div class="m-stripe"></div>
       <h1>${title}</h1>
       <h2>필수재료</h2>
-      ${essential.length ? `<ul>${rowHtml(essential)}</ul>` : "<p>-</p>"}
+      ${essential.length ? `<div class="ingline">${essentialInline}</div>` : "<p>-</p>"}
       <h2>만드는 방법</h2>
       ${stepsHtml}
       <h2>비주얼 이미지</h2>
