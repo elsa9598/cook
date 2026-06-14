@@ -1,36 +1,40 @@
 :root {
-  /* Clay design system — cream canvas, near-black ink, saturated feature colors */
-  --green-brand: #0a0a0a;   /* headlines / brand ink */
-  --green-accent: #0a0a0a;  /* primary CTA — near-black */
-  --green-house: #1a3a3a;   /* deep teal feature surface (hero, recipe hero) */
-  --green-uplift: #1a2a2a;
-  --green-light: #f0e9d4;   /* soft cream chip / emoji wells */
-  --gold: #e8b94a;          /* ochre */
-  --cream: #fffaf0;         /* canvas */
-  --ceramic: #faf5e8;       /* surface-soft */
-  --white: #ffffff;
-  --ink: #0a0a0a;
-  --soft: #6a6a6a;          /* muted */
-  --danger: #ef4444;
-  --hairline: #e5e5e5;
-  --surface-card: #f5f0e0;
-  --brand-pink: #ff4d8b;
-  --brand-teal: #1a3a3a;
-  --brand-lavender: #b8a4ed;
-  --brand-peach: #ffb084;
-  --brand-ochre: #e8b94a;
-  --brand-mint: #a4d4c5;
-  --brand-coral: #ff6b5a;
-  --shadow-card: 0 1px 2px rgba(10, 10, 10, 0.05);
-  --shadow-nav: 0 1px 0 rgba(10, 10, 10, 0.06);
-  --radius-card: 16px;
-  --radius-pill: 9999px;
-  --radius-btn: 12px;
+  /* BMW M design — black canvas, white type, M tricolor accents, sharp edges */
+  --green-brand: #ffffff;   /* headlines */
+  --green-accent: #1c69d4;  /* M blue accent */
+  --green-house: #0d0d0d;   /* hero / dark surface */
+  --green-uplift: #1a1a1a;
+  --green-light: #262626;   /* elevated wells / chips */
+  --gold: #e22718;          /* M red */
+  --cream: #000000;         /* canvas */
+  --ceramic: #0d0d0d;       /* surface-soft */
+  --white: #1a1a1a;         /* card / elevated surface */
+  --ink: #ffffff;           /* text */
+  --soft: #9a9a9a;          /* muted */
+  --danger: #e22718;
+  --hairline: #3c3c3c;
+  --surface-card: #1a1a1a;
+  /* M tricolor + supporting accents */
+  --brand-pink: #e22718;
+  --brand-teal: #0066b1;
+  --brand-lavender: #1c69d4;
+  --brand-peach: #262626;
+  --brand-ochre: #e22718;
+  --brand-mint: #0066b1;
+  --brand-coral: #e22718;
+  --m-blue-light: #0066b1;
+  --m-blue-dark: #1c69d4;
+  --m-red: #e22718;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-nav: 0 -1px 0 rgba(255, 255, 255, 0.06);
+  --radius-card: 4px;
+  --radius-pill: 2px;
+  --radius-btn: 2px;
   --top-auth-h: 58px;
   --page-panel-h: 58px;
   color: var(--ink);
   font-family: Inter, Manrope, "Apple SD Gothic Neo", "Malgun Gothic", Arial, sans-serif;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.02em;
 }
 
 * {
@@ -88,7 +92,8 @@ button {
   gap: 8px;
   padding: 10px 14px;
   background: var(--cream);
-  border-bottom: 1px solid var(--hairline);
+  border-bottom: 3px solid;
+  border-image: linear-gradient(90deg, var(--m-blue-light) 0 33.3%, var(--m-blue-dark) 33.3% 66.6%, var(--m-red) 66.6% 100%) 1;
 }
 
 .auth-left {
@@ -126,8 +131,8 @@ button {
 }
 
 .pill {
-  background: var(--green-accent);
-  color: var(--white);
+  background: var(--ink);
+  color: var(--cream);
 }
 
 .ghost-pill {
@@ -137,9 +142,9 @@ button {
 }
 
 .dark-pill {
-  background: var(--ink);
+  background: var(--m-blue-dark);
   color: #fff;
-  border-color: var(--ink);
+  border-color: var(--m-blue-dark);
 }
 
 .icon-pill {
@@ -303,8 +308,8 @@ button {
 .storage-card,
 .cook-card {
   min-height: 96px;
-  border: 0;
-  border-radius: 20px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
   background: var(--white);
   padding: 14px;
   text-align: left;
@@ -341,46 +346,47 @@ button {
 
 .cook-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 9px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
 }
 
+/* Compact BMW-M menu buttons: short row, sharp, M-tricolor top accent */
 .cook-card {
-  min-height: 98px;
-  padding: 12px 10px;
-  text-align: center;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  text-align: left;
+  border-top: 3px solid var(--m-blue-dark);
 }
 
-.cook-card.active {
-  outline: 3px solid var(--ink);
-  outline-offset: 2px;
+.cook-card .cook-emoji {
+  width: 26px;
+  height: 26px;
+  font-size: 15px;
+  flex: 0 0 auto;
+  border-radius: 2px;
+  background: var(--green-light);
 }
 
 .cook-card strong {
-  font-size: 13px;
-  word-break: keep-all;
+  margin-top: 0;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Clay signature: saturated single-color feature cards, cycled, no repeat in a row */
-.storage-card:nth-child(1) { background: var(--brand-pink); color: #fff; }
-.storage-card:nth-child(2) { background: var(--brand-teal); color: #fff; }
-.storage-card:nth-child(3) { background: var(--brand-lavender); color: var(--ink); }
-.storage-card:nth-child(4) { background: var(--brand-peach); color: var(--ink); }
+.cook-card.active {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
 
-.cook-card:nth-child(6n + 1) { background: var(--brand-pink); color: #fff; }
-.cook-card:nth-child(6n + 2) { background: var(--brand-teal); color: #fff; }
-.cook-card:nth-child(6n + 3) { background: var(--brand-lavender); color: var(--ink); }
-.cook-card:nth-child(6n + 4) { background: var(--brand-peach); color: var(--ink); }
-.cook-card:nth-child(6n + 5) { background: var(--brand-ochre); color: var(--ink); }
-.cook-card:nth-child(6n) { background: var(--brand-mint); color: var(--ink); }
-
-.storage-card strong,
-.cook-card strong { color: inherit; }
-
-.storage-card span { color: inherit; opacity: 0.82; }
-
-.storage-card .storage-emoji,
-.cook-card .cook-emoji { background: rgba(255, 255, 255, 0.42); }
+/* M tricolor cycles across the menu buttons */
+.cook-card:nth-child(3n + 1) { border-top-color: var(--m-blue-light); }
+.cook-card:nth-child(3n + 2) { border-top-color: var(--m-blue-dark); }
+.cook-card:nth-child(3n) { border-top-color: var(--m-red); }
 
 .empty {
   padding: 18px;
@@ -412,7 +418,7 @@ button {
   border: 1px solid var(--hairline);
   border-radius: var(--radius-btn);
   padding: 11px 14px;
-  background: #fff;
+  background: var(--white);
   color: var(--ink);
   outline: none;
 }
@@ -471,7 +477,7 @@ button {
   border: 1px solid var(--hairline);
   border-radius: var(--radius-btn);
   color: var(--ink);
-  background: #fff;
+  background: var(--white);
   font-size: 13px;
   font-weight: 600;
 }
@@ -995,7 +1001,7 @@ button {
 
 .step-card {
   margin-top: 12px;
-  background: #fff;
+  background: var(--white);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-card);
   overflow: hidden;
@@ -1038,7 +1044,7 @@ button {
 
 .copy-box {
   margin-top: 14px;
-  background: #fff;
+  background: var(--white);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-card);
   padding: 14px;
@@ -1172,7 +1178,7 @@ button {
   max-height: calc(100dvh - 32px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  background: #fff;
+  background: var(--white);
   border-radius: var(--radius-card);
   padding: 22px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
@@ -1415,26 +1421,34 @@ button {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .storage-card,
-  .cook-card {
-    min-height: 132px;
+  .storage-card {
+    min-height: 120px;
     padding: 16px;
   }
 
-  .storage-card strong,
-  .cook-card strong {
+  .cook-card {
+    min-height: 0;
+    padding: 12px 14px;
+  }
+
+  .storage-card strong {
     font-size: 23px;
   }
 
   .cook-card strong {
-    font-size: 20px;
+    font-size: 18px;
   }
 
-  .storage-emoji,
-  .cook-emoji {
+  .storage-emoji {
     width: 46px;
     height: 46px;
     font-size: 25px;
+  }
+
+  .cook-card .cook-emoji {
+    width: 32px;
+    height: 32px;
+    font-size: 19px;
   }
 
   .inventory-item {

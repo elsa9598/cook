@@ -1046,10 +1046,9 @@ function renderHome() {
         ${cookModes
           .map(
             ([key, koName, enName, emoji, descKo, descEn]) => `
-              <button class="cook-card" data-cook="${key}">
+              <button class="cook-card" data-cook="${key}" title="${state.lang === "ko" ? descKo : descEn}">
                 <span class="cook-emoji">${emoji}</span>
                 <strong>${state.lang === "ko" ? koName : enName}</strong>
-                <span>${state.lang === "ko" ? descKo : descEn}</span>
               </button>
             `
           )
