@@ -711,7 +711,20 @@ function defaultState() {
     lang: "ko",
     user: null,
     inventory: seedInventory(),
+    notes: {}, // saved memos by ingredient name — kept even after deleting the item
   };
+}
+
+// Remember/recall a researched memo by ingredient name so it survives deletion.
+function saveNote(name, memo) {
+  const key = String(name || "").trim();
+  const text = String(memo || "").trim();
+  if (!key || !text) return;
+  state.notes = state.notes || {};
+  state.notes[key] = text;
+}
+function recallNote(name) {
+  return (state.notes && state.notes[String(name || "").trim()]) || "";
 }
 
 function seedInventory() {
@@ -770,6 +783,7 @@ function ensureStaples() {
 
 function normalizeState() {
   state.inventory = state.inventory || {};
+  state.notes = state.notes || {};
   ["fridge", "freezer", "sauce", "room"].forEach((type) => {
     state.inventory[type] = Array.isArray(state.inventory[type]) ? state.inventory[type] : [];
   });
@@ -1678,6 +1692,7 @@ function saveSearchMemo(type, id) {
   const ta = document.querySelector("[data-search-memo]");
   if (entry && ta) {
     entry.memo = ta.value.trim();
+    saveNote(entry.name, entry.memo);
     saveState();
   }
 }
@@ -1715,6 +1730,10 @@ function applyNameSuggestion(input) {
   if (unitInput) {
     unitInput.value = defaultUnit(type, name);
   }
+  // Bring back a previously-saved note for this ingredient (survives deletion).
+  const memoInput = form?.querySelector("[name='memo']");
+  const note = recallNote(name);
+  if (memoInput && note && !memoInput.value.trim()) memoInput.value = note;
 }
 
 // Map of category → natural Korean measuring unit.
@@ -1871,7 +1890,9 @@ async function handleAddItem(event) {
   let memo = String(data.get("memo") || "").trim();
   let category = String(data.get("category") || "").trim();
   const info = buildSavedItemInfo(name, type, memo);
-  memo = memo || info.memo;
+  // Reuse a previously-researched note for this name if the user didn't type one.
+  memo = memo || recallNote(name) || info.memo;
+  saveNote(name, memo);
   category = category || autoCategory(type, name);
   const emoji = emojiFor(name, type);
   state.inventory[type].unshift(
@@ -1920,6 +1941,7 @@ function handleEditItem(event) {
   entry.unit = String(data.get("unit") || "").trim() || entry.unit;
   entry.category = String(data.get("category") || "").trim();
   entry.memo = String(data.get("memo") || "").trim();
+  saveNote(entry.name, entry.memo);
   saveState();
   modal = null;
   render();
