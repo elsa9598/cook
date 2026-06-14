@@ -1989,6 +1989,21 @@ const CLEAROUT_STYLES = [
   { koName: "무침", enName: "seasoned salad",
     ko: ["{mains}를 먹기 좋게 썰거나 살짝 데쳐요.", "물기를 꼭 짜서 볼에 담아요.", "{season}과 참기름, 깨를 넣고 조물조물 무쳐요.", "간을 보며 마무리해 그릇에 담아요."],
     en: ["Cut or briefly blanch {mains}.", "Squeeze out the water and put in a bowl.", "Toss with {season}, sesame oil and seeds.", "Adjust the seasoning and serve."] },
+  { koName: "덮밥", enName: "rice bowl",
+    ko: ["{mains}를 먹기 좋게 썰어요.", "팬에 기름을 두르고 {season}으로 볶아요.", "물을 조금 넣어 자작하게 익혀요.", "따뜻한 밥 위에 올려 담아요."],
+    en: ["Cut {mains} into pieces.", "Stir-fry in oil and season with {season}.", "Add a splash of water and simmer to a light sauce.", "Spoon over warm rice."] },
+  { koName: "볶음밥", enName: "fried rice",
+    ko: ["{mains}를 잘게 썰어요.", "팬에 기름을 두르고 볶아요.", "밥을 넣고 {season}으로 간해 고슬하게 볶아요.", "참기름을 둘러 그릇에 담아요."],
+    en: ["Finely chop {mains}.", "Stir-fry in oil.", "Add rice, season with {season} and toss until fluffy.", "Finish with sesame oil."] },
+  { koName: "전", enName: "savory pancake",
+    ko: ["{mains}를 잘게 썰어요.", "부침가루·물·달걀과 섞어 반죽해요.", "기름 두른 팬에 얇게 부쳐요.", "{season}을 곁들여 따뜻할 때 담아요."],
+    en: ["Chop {mains} small.", "Mix with frying flour, water and egg.", "Pan-fry thin in oil.", "Serve warm with {season}."] },
+  { koName: "카레", enName: "curry",
+    ko: ["{mains}를 깍둑 썰어요.", "팬에 볶다가 물을 부어요.", "카레가루를 풀어 농도가 날 때까지 끓여요.", "밥 위에 부어 담아요."],
+    en: ["Cube {mains}.", "Saute, then add water.", "Stir in curry powder and simmer until thick.", "Pour over rice."] },
+  { koName: "구이", enName: "pan-grill",
+    ko: ["{mains}에 소금·후추로 밑간해요.", "기름 두른 팬에 노릇하게 구워요.", "속까지 천천히 익혀요.", "{season}을 곁들여 담아요."],
+    en: ["Season {mains} with salt and pepper.", "Pan-grill golden in oil.", "Cook through gently.", "Serve with {season}."] },
 ];
 let clearoutCursor = 0;
 
@@ -2002,11 +2017,16 @@ const CLEAROUT_PRIORITY = {
   냉동간편식: 4, 냉동세계요리: 5,
   "콩/두부": 3, 유제품: 3,
   달걀: 4, 음료: 4,
-  "김치/반찬": 5,
+  // Room-temp cooking ingredients — used after fresh/frozen for variety.
+  구황작물: 4, 곡물: 5, 면류: 5, 통조림: 5, "건어물/건조": 5, 인스턴트: 5,
+  "김치/반찬": 6,
 };
 // Only sweets/bakery are skipped — prepared frozen foods (전·만두 등) still get
 // used since they also have expiry dates. (Side dishes 김치/반찬 are skipped too.)
 const CLEAROUT_SKIP = ["냉동베이커리", "아이스크림"];
+// Room-temp categories worth cooking with (the rest — snacks/drinks/baking/
+// sweeteners/nuts — aren't dish ingredients).
+const ROOM_COOKABLE = ["곡물", "면류", "통조림", "건어물/건조", "구황작물", "인스턴트"];
 function clearoutPriority(entry) {
   const cat = entry.category || "";
   if (CLEAROUT_PRIORITY[cat] != null) return CLEAROUT_PRIORITY[cat];
@@ -2092,11 +2112,12 @@ function buildClearoutOptions(count) {
   // Skip finished side dishes (김치/반찬) and processed frozen meals/desserts —
   // they aren't raw cooking ingredients. Raw frozen veg/meat/seafood are kept.
   const skip = (e) => { const c = e.category || ""; return c.includes("김치") || c.includes("반찬") || CLEAROUT_SKIP.includes(c); };
-  const perishable = [...state.inventory.fridge, ...state.inventory.freezer]
-    .filter((x) => Number(x.amount) > 0 && !skip(x))
-    .slice()
-    .sort((a, b) => clearoutPriority(a) - clearoutPriority(b));
-  if (!perishable.length) return [];
+  const fridgeFreezer = [...state.inventory.fridge, ...state.inventory.freezer].filter((x) => Number(x.amount) > 0 && !skip(x));
+  // Room-temp cooking ingredients (면·통조림·곡물·구황작물 등) join the pool for variety.
+  const roomCook = state.inventory.room.filter((x) => Number(x.amount) > 0 && ROOM_COOKABLE.includes(x.category));
+  const usable = [...fridgeFreezer, ...roomCook].slice().sort((a, b) => clearoutPriority(a) - clearoutPriority(b));
+  if (!usable.length) return [];
+
   const sauces = state.inventory.sauce.filter((x) => Number(x.amount) > 0);
   const seasonNames = [];
   ["간장", "식용유", "참기름", "고추장", "굴소스", "소금", "후추", "설탕"].forEach((s) => {
@@ -2105,14 +2126,25 @@ function buildClearoutOptions(count) {
   });
   sauces.forEach((x) => { if (seasonNames.length < 3 && !seasonNames.includes(x.name)) seasonNames.push(x.name); });
 
-  const mainsAll = perishable.slice(0, 4);
   const opts = [];
-  CLEAROUT_STYLES.forEach((style) => opts.push(makeClearoutOption(mainsAll, seasonNames, style, count)));
-  perishable.slice(0, 5).forEach((it, i) => opts.push(makeClearoutOption([it], seasonNames, CLEAROUT_STYLES[i % CLEAROUT_STYLES.length], count)));
+  // Varied combos: different ingredient subsets (size 1~3, rotating offset) per
+  // style so dishes aren't all "everything stir-fried".
+  CLEAROUT_STYLES.forEach((style, i) => {
+    const size = (i % 3) + 1;
+    const start = (i * 2) % usable.length;
+    const subset = [];
+    for (let k = 0; k < size; k++) {
+      const it = usable[(start + k) % usable.length];
+      if (it && !subset.includes(it)) subset.push(it);
+    }
+    opts.push(makeClearoutOption(subset, seasonNames, style, count));
+  });
+  // A few single-ingredient dishes for the most-urgent items.
+  usable.slice(0, 4).forEach((it, i) => opts.push(makeClearoutOption([it], seasonNames, CLEAROUT_STYLES[(i + 3) % CLEAROUT_STYLES.length], count)));
 
   const seen = new Set();
   const out = [];
-  for (const o of opts) { if (seen.has(o.ko)) continue; seen.add(o.ko); out.push(o); if (out.length >= 10) break; }
+  for (const o of opts) { if (seen.has(o.ko)) continue; seen.add(o.ko); out.push(o); if (out.length >= 12) break; }
   return out;
 }
 
