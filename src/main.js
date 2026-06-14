@@ -91,6 +91,12 @@ const ko = {
   bottomCold: "냉장/냉동",
   bottomSauce: "양념",
   bottomRoom: "실온",
+  bottomCookbook: "요리책",
+  cookbookTitle: "내 요리책",
+  cookbookEmpty: "아직 만든 요리가 없어요. 요리 종류를 골라 PDF를 만들면 여기에 모여요.",
+  cookbookHint: "메뉴별로 모은 내 요리 — 누르면 펼쳐보고 PDF로 저장할 수 있어요.",
+  openRecipe: "펼쳐보기",
+  deleteRecipe: "삭제",
   email: "이메일",
   password: "비밀번호",
   confirm: "확인",
@@ -243,6 +249,12 @@ const en = {
   bottomCold: "Cold",
   bottomSauce: "Seasoning",
   bottomRoom: "Room",
+  bottomCookbook: "Cookbook",
+  cookbookTitle: "My cookbook",
+  cookbookEmpty: "No recipes yet. Pick a dish type and make a PDF — it shows up here.",
+  cookbookHint: "Your recipes grouped by menu — tap to open and save as PDF.",
+  openRecipe: "Open",
+  deleteRecipe: "Delete",
   email: "Email",
   password: "Password",
   confirm: "OK",
@@ -872,6 +884,7 @@ function defaultState() {
     user: null,
     inventory: seedInventory(),
     notes: {}, // saved memos by ingredient name — kept even after deleting the item
+    savedRecipes: [], // PDFs the user made, grouped by mode in the cookbook
   };
 }
 
@@ -944,6 +957,7 @@ function ensureStaples() {
 function normalizeState() {
   state.inventory = state.inventory || {};
   state.notes = state.notes || {};
+  state.savedRecipes = Array.isArray(state.savedRecipes) ? state.savedRecipes : [];
   ["fridge", "freezer", "sauce", "room"].forEach((type) => {
     state.inventory[type] = Array.isArray(state.inventory[type]) ? state.inventory[type] : [];
   });
@@ -1139,6 +1153,7 @@ function getTitles() {
       big: state.user ? t("premiumBig") : t("homeBig"),
     };
   }
+  if (selectedTab === "cookbook") return { small: t("bottomCookbook"), big: t("cookbookTitle") };
   if (selectedTab === "cold") {
     return { small: t("pantrySmall"), big: selectedStorage === "freezer" ? t("freezerBig") : t("fridgeBig") };
   }
@@ -1159,6 +1174,7 @@ function getTitles() {
 function renderCurrentPage() {
   if (!canUseFeatures() && selectedTab !== "home") return renderGate();
   if (selectedTab === "home") return renderHome();
+  if (selectedTab === "cookbook") return renderCookbook();
   if (selectedTab === "cold") return renderStoragePage(selectedStorage);
   if (selectedTab === "sauce") return renderSaucePage();
   if (selectedTab === "room") return renderStoragePage("room");
@@ -1188,6 +1204,35 @@ function renderHome() {
       </div>
     </section>
   `;
+}
+
+function renderCookbook() {
+  const saved = state.savedRecipes || [];
+  if (!saved.length) {
+    return `<section class="section"><div class="card empty">${t("cookbookEmpty")}</div></section>`;
+  }
+  const sections = cookModes
+    .map(([key, koName, enName, emoji]) => {
+      const list = saved.filter((r) => r.mode === key);
+      if (!list.length) return "";
+      const cards = list
+        .map(
+          (r) => `
+          <div class="recipe-row" data-open-recipe="${r.id}">
+            <span class="recipe-row-emoji">${r.image ? "🖼️" : "📄"}</span>
+            <span class="recipe-row-title">${escapeHtml(r.title)}</span>
+            <button class="recipe-del" data-del-recipe="${r.id}" title="${t("deleteRecipe")}">🗑</button>
+          </div>`
+        )
+        .join("");
+      return `
+        <section class="section">
+          <div class="section-head"><h2 class="section-title">${emoji} ${state.lang === "ko" ? koName : enName}</h2></div>
+          <div class="recipe-list">${cards}</div>
+        </section>`;
+    })
+    .join("");
+  return `<p class="cookbook-hint">${t("cookbookHint")}</p>${sections}`;
 }
 
 function renderStorageShortcut(key, type) {
@@ -1488,80 +1533,105 @@ function parseIngredientLine(text) {
     });
 }
 
-function exportSheetPdf() {
-  const mode = sheetMode;
-  const modeKo = (cookModes.find((m) => m[0] === mode) || [])[1] || "요리";
-  const titleRaw = (sheetTitleText || "").trim() || (sheetDish || "").trim();
-  const title = titleRaw ? escapeHtml(titleRaw) : `${modeKo} 요리`;
-  const memo = escapeHtml(sheetMemo || "").replaceAll("\n", "<br>");
+// Scoped CSS (under .rdoc) shared by the print window and the in-app viewer.
+const RECIPE_DOC_CSS = `
+  .rdoc { background:#fff; color:#333; font-family:"Inter","Malgun Gothic","Apple SD Gothic Neo",Arial,sans-serif; line-height:1.4; overflow-wrap:anywhere; word-break:break-word; padding:16px; }
+  .rdoc h1 { font-size:26px; font-weight:700; color:#111; letter-spacing:0.5px; margin:0 0 10px; }
+  .rdoc h2 { font-size:12px; font-weight:700; color:#111; letter-spacing:1.2px; margin:13px 0 7px; padding-bottom:5px; border-bottom:1px solid #cfcfcf; }
+  .rdoc .ingline { font-size:14px; line-height:1.7; color:#222; }
+  .rdoc .ing { display:inline-block; white-space:nowrap; margin:0 4px 4px 0; }
+  .rdoc .ing + .ing::before { content:"· "; color:#aaa; }
+  .rdoc .amt { color:#1c69d4; font-weight:700; margin-left:3px; }
+  .rdoc .memo { white-space:pre-wrap; font-size:14px; line-height:1.5; color:#222; }
+  .rdoc ol.steps { margin:0; padding:0; list-style:none; counter-reset:step; }
+  .rdoc ol.steps li { counter-increment:step; position:relative; padding-left:30px; margin:0 0 6px; font-size:14px; line-height:1.5; color:#222; }
+  .rdoc ol.steps li::before { content:counter(step); position:absolute; left:0; top:1px; width:21px; height:21px; background:#1c69d4; color:#fff; font-weight:700; font-size:12px; text-align:center; line-height:21px; }
+  .rdoc .m-stripe { height:4px; background:linear-gradient(90deg,#0066b1 0 33%,#1c69d4 33% 66%,#e22718 66% 100%); margin-bottom:12px; }
+  .rdoc .frame { width:70%; margin:14px auto 0; padding:7px; background:linear-gradient(90deg,#0066b1 0 33%,#1c69d4 33% 66%,#e22718 66% 100%); }
+  .rdoc .frame-mat { background:#fff; padding:14px; }
+  .rdoc .frame img { display:block; width:100%; }
+  .rdoc .img-ph { width:70%; height:60mm; margin:14px auto 0; border:1px dashed #bbb; display:flex; align-items:center; justify-content:center; color:#999; }
+  .rdoc .deco { width:70%; margin:8px auto 0; display:flex; justify-content:space-between; align-items:center; font-size:24px; }
+  .rdoc .deco span { display:inline-block; margin:0 3px; }
+`;
 
-  // Edited fields win; otherwise fall back to auto extraction/splitting.
-  const essential = sheetIngredientsText.trim()
-    ? parseIngredientLine(sheetIngredientsText)
-    : sheetEssentialItems();
+// Build the recipe body HTML from a saved record {title, ingredientsText, stepsText, image}.
+function recipeBody(rec) {
+  const essential = parseIngredientLine(rec.ingredientsText || "");
   const essentialInline = essential
-    .map(
-      (e) =>
-        `<span class="ing">${escapeHtml(e.name)}${e.amount ? `<span class="amt">${escapeHtml(e.amount)}</span>` : ""}</span>`
-    )
+    .map((e) => `<span class="ing">${escapeHtml(e.name)}${e.amount ? `<span class="amt">${escapeHtml(e.amount)}</span>` : ""}</span>`)
     .join("");
-  const steps = sheetStepsText.trim()
-    ? sheetStepsText.split(/\n+/).map((x) => x.trim()).filter(Boolean)
-    : splitRecipeSteps(sheetMemo);
+  const steps = String(rec.stepsText || "").split(/\n+/).map((x) => x.trim()).filter(Boolean);
   const stepsHtml = steps.length
     ? `<ol class="steps">${steps.map((st) => `<li>${escapeHtml(st)}</li>`).join("")}</ol>`
-    : `<div class="memo">${memo || "-"}</div>`;
-  const imgHtml = sheetImage
-    ? `<div class="frame"><div class="frame-mat"><img src="${sheetImage}" /></div></div>`
+    : "<p>-</p>";
+  const imgHtml = rec.image
+    ? `<div class="frame"><div class="frame-mat"><img src="${rec.image}" /></div></div>`
     : `<div class="img-ph">${t("imagePlaceholder")}</div>`;
-  // Bottom-left/right utensil & yummy emojis, each randomly rotated for a playful look.
   const rot = () => Math.round(Math.random() * 80 - 40);
   const sz = () => (Math.random() * 0.5 + 0.95).toFixed(2);
   const cluster = (arr) =>
     arr.map((e) => `<span style="transform:rotate(${rot()}deg);font-size:${sz()}em">${e}</span>`).join("");
-  const decoHtml = sheetImage
+  const decoHtml = rec.image
     ? `<div class="deco"><div>${cluster(["🍴", "🥄", "😋"])}</div><div>${cluster(["🔪", "🥢", "🤤"])}</div></div>`
     : "";
-  const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${modeKo} 요리</title>
-    <style>
-      @page { size: A4; margin: 12mm; }
-      * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      html, body { background: #ffffff; margin: 0; padding: 0; }
-      body { font-family: "Inter", "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; color: #333333; line-height: 1.4; overflow-wrap: anywhere; word-break: break-word; }
-      h1 { font-size: 26px; font-weight: 700; color: #111111; letter-spacing: 0.5px; margin: 0 0 10px; }
-      h2 { font-size: 12px; font-weight: 700; color: #111111; letter-spacing: 1.2px; margin: 13px 0 7px; padding-bottom: 5px; border-bottom: 1px solid #cfcfcf; }
-      .ingline { font-size: 14px; line-height: 1.7; color: #222222; }
-      .ing { display: inline-block; white-space: nowrap; margin: 0 4px 4px 0; }
-      .ing + .ing::before { content: "· "; color: #aaaaaa; }
-      .amt { color: #1c69d4; font-weight: 700; margin-left: 3px; }
-      .memo { white-space: pre-wrap; font-size: 14px; line-height: 1.5; color: #222222; }
-      ol.steps { margin: 0; padding: 0; list-style: none; counter-reset: step; }
-      ol.steps li { counter-increment: step; position: relative; padding-left: 30px; margin: 0 0 6px; font-size: 14px; line-height: 1.5; color: #222222; }
-      ol.steps li::before { content: counter(step); position: absolute; left: 0; top: 1px; width: 21px; height: 21px; background: #1c69d4; color: #fff; font-weight: 700; font-size: 12px; text-align: center; line-height: 21px; }
-      .m-stripe { height: 4px; background: linear-gradient(90deg,#0066b1 0 33%,#1c69d4 33% 66%,#e22718 66% 100%); margin-bottom: 12px; }
-      .frame { width: 70%; margin: 14px auto 0; padding: 7px; background: linear-gradient(90deg,#0066b1 0 33%,#1c69d4 33% 66%,#e22718 66% 100%); }
-      .frame-mat { background: #ffffff; padding: 14px; }
-      .frame img { display: block; width: 100%; }
-      .img-ph { width: 70%; height: 60mm; margin: 14px auto 0; border: 1px dashed #bbbbbb; display: flex; align-items: center; justify-content: center; color: #999999; }
-      .deco { width: 70%; margin: 8px auto 0; display: flex; justify-content: space-between; align-items: center; font-size: 24px; }
-      .deco span { display: inline-block; margin: 0 3px; }
-    </style></head>
-    <body>
-      <div class="m-stripe"></div>
-      <h1>${title}</h1>
-      <h2>필수재료</h2>
-      ${essential.length ? `<div class="ingline">${essentialInline}</div>` : "<p>-</p>"}
-      <h2>만드는 방법</h2>
-      ${stepsHtml}
-      ${imgHtml}
-      ${decoHtml}
-      <script>window.onload=function(){setTimeout(function(){window.print();},300);};<\/script>
-    </body></html>`;
+  return (
+    `<div class="m-stripe"></div>` +
+    `<h1>${escapeHtml(rec.title || "요리")}</h1>` +
+    `<h2>필수재료</h2>${essential.length ? `<div class="ingline">${essentialInline}</div>` : "<p>-</p>"}` +
+    `<h2>만드는 방법</h2>${stepsHtml}${imgHtml}${decoHtml}`
+  );
+}
+
+// A snapshot of the current cook sheet as a saveable recipe record.
+function recipeFromSheet() {
+  const modeKo = (cookModes.find((m) => m[0] === sheetMode) || [])[1] || "요리";
+  const title = (sheetTitleText || "").trim() || (sheetDish || "").trim() || `${modeKo} 요리`;
+  const essential = sheetIngredientsText.trim() ? parseIngredientLine(sheetIngredientsText) : sheetEssentialItems();
+  const ingredientsText = essential.map((e) => (e.amount ? `${e.name} ${e.amount}` : e.name)).join(", ");
+  const steps = sheetStepsText.trim()
+    ? sheetStepsText.split(/\n+/).map((x) => x.trim()).filter(Boolean)
+    : splitRecipeSteps(sheetMemo);
+  return {
+    id: `${sheetMode}-${Date.now()}`,
+    mode: sheetMode,
+    title,
+    ingredientsText,
+    stepsText: steps.join("\n"),
+    image: sheetImage || null,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+// Save (or update by mode+title) a recipe in the cookbook.
+function saveRecipeRecord(rec) {
+  state.savedRecipes = state.savedRecipes || [];
+  const idx = state.savedRecipes.findIndex((r) => r.mode === rec.mode && r.title === rec.title);
+  if (idx >= 0) state.savedRecipes[idx] = { ...rec, id: state.savedRecipes[idx].id };
+  else state.savedRecipes.unshift(rec);
+  saveState();
+}
+
+// Open the OS print dialog (Save as PDF) for a recipe record.
+function exportRecipePdf(rec) {
+  const html =
+    `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${escapeHtml(rec.title || "요리")}</title>` +
+    `<style>@page{size:A4;margin:12mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}` +
+    `html,body{margin:0;padding:0;background:#fff}${RECIPE_DOC_CSS}.rdoc{padding:0}</style></head>` +
+    `<body><div class="rdoc">${recipeBody(rec)}</div>` +
+    `<script>window.onload=function(){setTimeout(function(){window.print();},300);};<\/script></body></html>`;
   const w = window.open("", "_blank");
   if (!w) return;
   w.document.open();
   w.document.write(html);
   w.document.close();
+}
+
+// From the cook sheet: save to cookbook, then open the print dialog.
+function exportSheetPdf() {
+  const rec = recipeFromSheet();
+  saveRecipeRecord(rec);
+  exportRecipePdf(rec);
 }
 
 function renderCarousel() {
@@ -1685,7 +1755,8 @@ function renderBottomNav() {
   const homeLabel = state.user ? t("premiumNav") : t("homeSmall");
   return `
     <nav class="bottom-nav">
-      ${bottomTab("home", state.user ? "⭐" : "🏠", homeLabel)}
+      ${bottomTab("home", "🏠", t("homeSmall"))}
+      ${bottomTab("cookbook", "📚", t("bottomCookbook"))}
       ${bottomTab("cold", "❄️", t("bottomCold"))}
       ${bottomTab("sauce", "🧂", t("bottomSauce"))}
       ${bottomTab("room", "🍞", t("bottomRoom"))}
@@ -1703,12 +1774,29 @@ function bottomTab(key, emoji, label) {
 }
 
 function renderModal() {
+  if (modal?.startsWith("recipe:")) return renderRecipeViewer(modal.slice("recipe:".length));
   if (modal === "signup" || modal === "login") return renderAuthModal(modal);
   if (modal === "celebrate") return renderCelebrationModal();
   if (modal?.startsWith("detail:")) return renderDetailModal(modal.split(":")[1], modal.split(":")[2]);
   if (modal?.startsWith("websearch:")) return renderWebSearchModal(modal.split(":")[1], modal.split(":")[2]);
   if (modal?.startsWith("edit:")) return renderEditModal(modal.split(":")[1], modal.split(":")[2]);
   return "";
+}
+
+function renderRecipeViewer(id) {
+  const rec = (state.savedRecipes || []).find((r) => r.id === id);
+  if (!rec) return "";
+  return `
+    <div class="modal-backdrop viewer-backdrop">
+      <div class="viewer">
+        <button class="viewer-close" data-action="close-modal" aria-label="close">✕</button>
+        <div class="viewer-stage" data-viewer-stage>
+          <div class="viewer-content rdoc" data-viewer-content><style>${RECIPE_DOC_CSS}</style>${recipeBody(rec)}</div>
+        </div>
+        <button class="pill viewer-pdf" data-recipe-pdf="${id}">📄 ${t("savePdf")}</button>
+      </div>
+    </div>
+  `;
 }
 
 function renderAuthModal(kind) {
@@ -1863,6 +1951,57 @@ function renderEditModal(type, id) {
   `;
 }
 
+// Pinch-zoom + drag for the recipe viewer popup.
+function setupViewerGestures() {
+  const stage = document.querySelector("[data-viewer-stage]");
+  const content = document.querySelector("[data-viewer-content]");
+  if (!stage || !content) return;
+  let scale = 1, tx = 0, ty = 0;
+  const pts = new Map();
+  let startDist = 0, startScale = 1, startMid = { x: 0, y: 0 }, startTx = 0, startTy = 0;
+  let lastTap = 0;
+  const apply = () => { content.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`; };
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  stage.addEventListener("pointerdown", (e) => {
+    stage.setPointerCapture(e.pointerId);
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const arr = [...pts.values()];
+    if (pts.size === 1) { startTx = tx; startTy = ty; startMid = { x: e.clientX, y: e.clientY }; }
+    else if (pts.size === 2) { startDist = dist(arr[0], arr[1]); startScale = scale; startMid = mid(arr[0], arr[1]); startTx = tx; startTy = ty; }
+  });
+  stage.addEventListener("pointermove", (e) => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const arr = [...pts.values()];
+    if (pts.size === 1) {
+      tx = startTx + (arr[0].x - startMid.x);
+      ty = startTy + (arr[0].y - startMid.y);
+      apply();
+    } else if (pts.size >= 2) {
+      const d = dist(arr[0], arr[1]);
+      scale = Math.min(5, Math.max(1, startScale * (d / (startDist || 1))));
+      const m = mid(arr[0], arr[1]);
+      tx = startTx + (m.x - startMid.x);
+      ty = startTy + (m.y - startMid.y);
+      apply();
+    }
+  });
+  const up = (e) => {
+    pts.delete(e.pointerId);
+    const r = [...pts.values()][0];
+    if (r) { startTx = tx; startTy = ty; startMid = { x: r.x, y: r.y }; }
+    if (pts.size === 0) {
+      const now = Date.now();
+      if (now - lastTap < 300) { scale = 1; tx = 0; ty = 0; apply(); } // double-tap reset
+      lastTap = now;
+      if (scale <= 1) { scale = 1; tx = 0; ty = 0; apply(); }
+    }
+  };
+  stage.addEventListener("pointerup", up);
+  stage.addEventListener("pointercancel", up);
+}
+
 function bindEvents() {
   document.querySelectorAll("[data-action]").forEach((button) => {
     button.addEventListener("click", handleAction);
@@ -1897,6 +2036,25 @@ function bindEvents() {
       render();
     });
   });
+  document.querySelectorAll("[data-open-recipe]").forEach((el) => {
+    el.addEventListener("click", () => { modal = `recipe:${el.dataset.openRecipe}`; render(); });
+  });
+  document.querySelectorAll("[data-del-recipe]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.delRecipe;
+      state.savedRecipes = (state.savedRecipes || []).filter((r) => r.id !== id);
+      saveState();
+      render();
+    });
+  });
+  document.querySelectorAll("[data-recipe-pdf]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const rec = (state.savedRecipes || []).find((r) => r.id === btn.dataset.recipePdf);
+      if (rec) exportRecipePdf(rec);
+    });
+  });
+  setupViewerGestures();
   document.querySelectorAll("[data-cook]").forEach((button) => {
     button.addEventListener("click", () => {
       selectedCookMode = button.dataset.cook;
@@ -2237,6 +2395,7 @@ function exportBackup() {
     version: 2,
     savedAt: new Date().toISOString(),
     inventory: state.inventory,
+    savedRecipes: state.savedRecipes || [],
   }, null, 2);
   const blob = new Blob([payload], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -2270,6 +2429,12 @@ async function importBackup(input) {
         });
       });
     });
+    if (Array.isArray(data.savedRecipes)) {
+      state.savedRecipes = state.savedRecipes || [];
+      data.savedRecipes.forEach((r) => {
+        if (r && r.id && !state.savedRecipes.some((x) => x.id === r.id)) state.savedRecipes.push(r);
+      });
+    }
     saveState();
     render();
   } catch {
