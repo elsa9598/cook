@@ -142,6 +142,8 @@ const ko = {
   searchRecipe: "구글에서 요리법 검색",
   recipeMemoLabel: "요리법 (검색해서 복사·붙여넣기)",
   organizeBtn: "🪄 자동 정리 → 아래 칸 채우기",
+  editTitleLabel: "요리 제목 (편집)",
+  editTitlePlaceholder: "예: 단호박식빵 (복사한 요리법 제목)",
   editIngsLabel: "필수재료 (편집 · 쉼표로 구분)",
   editStepsLabel: "만드는 방법 (편집 · 한 줄에 한 단계)",
   editIngsPlaceholder: "예: 강력분 290g, 단호박 130g, 설탕 35g, 소금 6g",
@@ -292,6 +294,8 @@ const en = {
   searchRecipe: "Search recipe on Google",
   recipeMemoLabel: "Recipe (search, copy & paste)",
   organizeBtn: "🪄 Auto-organize → fill fields below",
+  editTitleLabel: "Recipe title (edit)",
+  editTitlePlaceholder: "e.g. pumpkin bread (title of the copied recipe)",
   editIngsLabel: "Ingredients (edit · comma separated)",
   editStepsLabel: "Steps (edit · one step per line)",
   editIngsPlaceholder: "e.g. bread flour 290g, pumpkin 130g, sugar 35g, salt 6g",
@@ -728,6 +732,7 @@ let sheetChecked = new Set(); // "type:id"
 let sheetMemo = "";
 let sheetImage = null; // dataUrl
 let sheetDish = ""; // 만들고 싶은 요리/살 재료 — 없는 재료도 검색·제목에 사용
+let sheetTitleText = ""; // 편집 가능한 요리 제목 (비면 dish/모드명 사용)
 let sheetIngredientsText = ""; // 편집 가능한 필수재료 (비면 자동 추출 사용)
 let sheetStepsText = ""; // 편집 가능한 만드는 방법, 한 줄=한 단계 (비면 자동 분리 사용)
 
@@ -1413,6 +1418,10 @@ function renderCookSheet() {
       </div>
       <button class="pill" style="width:100%; margin:4px 0 14px" data-sheet-organize>${t("organizeBtn")}</button>
       <div class="field">
+        <label>${t("editTitleLabel")}</label>
+        <input type="text" data-sheet-title value="${escapeAttr(sheetTitleText)}" placeholder="${escapeAttr(t("editTitlePlaceholder"))}" />
+      </div>
+      <div class="field">
         <label>${t("editIngsLabel")}</label>
         <textarea data-sheet-ings rows="4" placeholder="${escapeAttr(t("editIngsPlaceholder"))}">${escapeHtml(sheetIngredientsText)}</textarea>
       </div>
@@ -1461,6 +1470,19 @@ function sheetEssentialItems() {
   return ordered.map((e) => ({ name: displayName(e.name), amount: e.amount }));
 }
 
+// Pull the recipe title from the pasted text — first meaningful line, skipping
+// blog cruft / ingredient headers.
+function extractRecipeTitle(memo) {
+  const lines = String(memo || "").replace(/\r/g, "").split("\n").map((x) => x.trim()).filter(Boolean);
+  for (const l of lines) {
+    const c = l.replace(/^[^가-힣A-Za-z0-9]+/, "").trim();
+    if (!c) continue;
+    if (/^(재료|필수\s*재료|주\s*재료|부\s*재료|준비물|레시피|만개의|출처|사진|블로그|만드는\s*방법|조리)/.test(c)) continue;
+    return c.split(/[.!?\n]/)[0].slice(0, 40).trim();
+  }
+  return "";
+}
+
 // Parse an edited "이름 290g, 이름 약간" line into {name, amount} pairs.
 function parseIngredientLine(text) {
   const qtyEnd = new RegExp("(.*?)\\s*(" + QTY_SRC + ")\\s*$");
@@ -1477,8 +1499,8 @@ function parseIngredientLine(text) {
 function exportSheetPdf() {
   const mode = sheetMode;
   const modeKo = (cookModes.find((m) => m[0] === mode) || [])[1] || "요리";
-  const dish = (sheetDish || "").trim();
-  const title = dish ? escapeHtml(dish) : `${modeKo} 요리`;
+  const titleRaw = (sheetTitleText || "").trim() || (sheetDish || "").trim();
+  const title = titleRaw ? escapeHtml(titleRaw) : `${modeKo} 요리`;
   const memo = escapeHtml(sheetMemo || "").replaceAll("\n", "<br>");
 
   // Edited fields win; otherwise fall back to auto extraction/splitting.
@@ -1504,22 +1526,22 @@ function exportSheetPdf() {
     <style>
       @page { size: A4; margin: 12mm; }
       * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      html, body { background: #000; margin: 0; padding: 0; }
-      body { font-family: "Inter", "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; color: #bbbbbb; line-height: 1.4; overflow-wrap: anywhere; word-break: break-word; }
-      h1 { font-size: 26px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px; margin: 0 0 10px; }
-      h2 { font-size: 12px; font-weight: 700; color: #ffffff; letter-spacing: 1.2px; margin: 13px 0 7px; padding-bottom: 5px; border-bottom: 1px solid #3c3c3c; }
-      .ingline { font-size: 14px; line-height: 1.7; color: #e6e6e6; }
+      html, body { background: #ffffff; margin: 0; padding: 0; }
+      body { font-family: "Inter", "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; color: #333333; line-height: 1.4; overflow-wrap: anywhere; word-break: break-word; }
+      h1 { font-size: 26px; font-weight: 700; color: #111111; letter-spacing: 0.5px; margin: 0 0 10px; }
+      h2 { font-size: 12px; font-weight: 700; color: #111111; letter-spacing: 1.2px; margin: 13px 0 7px; padding-bottom: 5px; border-bottom: 1px solid #cfcfcf; }
+      .ingline { font-size: 14px; line-height: 1.7; color: #222222; }
       .ing { display: inline-block; white-space: nowrap; margin: 0 4px 4px 0; }
-      .ing + .ing::before { content: "· "; color: #6b6b6b; }
+      .ing + .ing::before { content: "· "; color: #aaaaaa; }
       .amt { color: #1c69d4; font-weight: 700; margin-left: 3px; }
-      .memo { white-space: pre-wrap; font-size: 14px; line-height: 1.5; color: #e6e6e6; }
+      .memo { white-space: pre-wrap; font-size: 14px; line-height: 1.5; color: #222222; }
       ol.steps { margin: 0; padding: 0; list-style: none; counter-reset: step; }
-      ol.steps li { counter-increment: step; position: relative; padding-left: 30px; margin: 0 0 6px; font-size: 14px; line-height: 1.5; color: #e6e6e6; }
+      ol.steps li { counter-increment: step; position: relative; padding-left: 30px; margin: 0 0 6px; font-size: 14px; line-height: 1.5; color: #222222; }
       ol.steps li::before { content: counter(step); position: absolute; left: 0; top: 1px; width: 21px; height: 21px; background: #1c69d4; color: #fff; font-weight: 700; font-size: 12px; text-align: center; line-height: 21px; }
       .m-stripe { height: 4px; background: linear-gradient(90deg,#0066b1 0 33%,#1c69d4 33% 66%,#e22718 66% 100%); margin-bottom: 12px; }
       .frame { width: 70%; margin: 6px auto 0; padding: 12px; background: linear-gradient(135deg,#a9763f 0%,#7a4f25 45%,#5c3a18 100%); border: 1px solid #3e2710; border-radius: 3px; box-shadow: inset 0 0 0 2px rgba(255,255,255,.12); }
       .frame img { display: block; width: 100%; border: 5px solid #f4ecd8; }
-      .img-ph { width: 70%; height: 60mm; margin: 6px auto 0; border: 1px dashed #3c3c3c; display: flex; align-items: center; justify-content: center; color: #7e7e7e; }
+      .img-ph { width: 70%; height: 60mm; margin: 6px auto 0; border: 1px dashed #bbbbbb; display: flex; align-items: center; justify-content: center; color: #999999; }
     </style></head>
     <body>
       <div class="m-stripe"></div>
@@ -1890,6 +1912,9 @@ function bindEvents() {
   document.querySelectorAll("[data-sheet-memo]").forEach((ta) => {
     ta.addEventListener("input", () => { sheetMemo = ta.value; });
   });
+  document.querySelectorAll("[data-sheet-title]").forEach((inp) => {
+    inp.addEventListener("input", () => { sheetTitleText = inp.value; });
+  });
   document.querySelectorAll("[data-sheet-ings]").forEach((ta) => {
     ta.addEventListener("input", () => { sheetIngredientsText = ta.value; });
   });
@@ -1900,6 +1925,7 @@ function bindEvents() {
     button.addEventListener("click", () => {
       const memoEl = document.querySelector("[data-sheet-memo]");
       if (memoEl) sheetMemo = memoEl.value;
+      sheetTitleText = extractRecipeTitle(sheetMemo) || sheetTitleText;
       sheetIngredientsText = sheetEssentialItems()
         .map((e) => (e.amount ? `${e.name} ${e.amount}` : e.name))
         .join(", ");
@@ -1952,6 +1978,12 @@ function bindEvents() {
       if (memoEl) sheetMemo = memoEl.value;
       const dishEl = document.querySelector("[data-sheet-dish]");
       if (dishEl) sheetDish = dishEl.value;
+      const titleEl = document.querySelector("[data-sheet-title]");
+      if (titleEl) sheetTitleText = titleEl.value;
+      const ingsEl = document.querySelector("[data-sheet-ings]");
+      if (ingsEl) sheetIngredientsText = ingsEl.value;
+      const stepsEl = document.querySelector("[data-sheet-steps]");
+      if (stepsEl) sheetStepsText = stepsEl.value;
       exportSheetPdf();
     });
   });
@@ -2514,6 +2546,7 @@ function openCookSheet(mode) {
   sheetMemo = "";
   sheetImage = null;
   sheetDish = "";
+  sheetTitleText = "";
   sheetIngredientsText = "";
   sheetStepsText = "";
   selectedTab = "cooksheet";
