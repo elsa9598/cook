@@ -2564,11 +2564,17 @@ function sheetCheckedNames() {
 function buildSheetPrompt(mode, names) {
   const en = names.map((n) => ingredientTranslations[n] || EN_NAME[n] || n).join(", ");
   const modeEn = (cookModes.find((m) => m[0] === mode) || [])[2] || "home cooking";
-  const dish = (sheetDish || "").trim();
-  const subject = dish
-    ? `a mouthwatering dish of "${dish}"${en ? ` made with ${en}` : ""}`
-    : `a mouthwatering ${modeEn} dish made with ${en || "home ingredients"}`;
-  return `A ${subject}, plated on a clean dish, glossy textures, fresh garnish, appetizing colors, realistic home-kitchen lighting, high detail, no text, no watermark, no hands. Generate in 1:1 square aspect ratio (1:1 비율로 생성).`;
+  const dish = (sheetTitleText || sheetDish || "").trim();
+  const dishPart = dish ? `the dish "${dish}"` : `a ${modeEn} dish`;
+  const withPart = en ? ` made with ${en}` : "";
+  return (
+    `Professional food photography of ${dishPart}${withPart}, freshly cooked and still steaming, ` +
+    `beautifully plated on an elegant ceramic plate, glossy juicy textures, vibrant fresh colors, ` +
+    `garnished with fresh herbs, shot on an 85mm macro lens at f/2.8 with shallow depth of field and ` +
+    `soft natural window light, styled like a Michelin-star restaurant dish, extremely appetizing and ` +
+    `mouthwatering, hyper-realistic, sharp focus, fine detail, 8k, food-magazine quality. ` +
+    `No text, no watermark, no hands. Generate in 1:1 square aspect ratio (1:1 비율로 생성).`
+  );
 }
 
 function openCarousel(mode) {
