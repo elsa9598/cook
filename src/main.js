@@ -97,6 +97,12 @@ const ko = {
   cookbookHint: "메뉴별로 모은 내 요리 — 누르면 펼쳐보고 PDF로 저장할 수 있어요.",
   openRecipe: "펼쳐보기",
   deleteRecipe: "삭제",
+  trashTitle: "🗑 최근 삭제 (되돌리기)",
+  trashHint: "실수로 지운 요리는 여기서 되돌릴 수 있어요 (최근 30개 보관).",
+  restoreRecipe: "되돌리기",
+  purgeRecipe: "완전삭제",
+  confirmDelete: "이 요리를 삭제할까요? (요리책 휴지통에서 되돌릴 수 있어요)",
+  confirmPurge: "완전히 삭제할까요? 되돌릴 수 없어요.",
   email: "이메일",
   password: "비밀번호",
   confirm: "확인",
@@ -255,6 +261,12 @@ const en = {
   cookbookHint: "Your recipes grouped by menu — tap to open and save as PDF.",
   openRecipe: "Open",
   deleteRecipe: "Delete",
+  trashTitle: "🗑 Recently deleted (restore)",
+  trashHint: "Accidentally deleted recipes can be restored here (last 30 kept).",
+  restoreRecipe: "Restore",
+  purgeRecipe: "Delete forever",
+  confirmDelete: "Delete this recipe? (You can restore it from the cookbook trash.)",
+  confirmPurge: "Delete forever? This cannot be undone.",
   email: "Email",
   password: "Password",
   confirm: "OK",
@@ -885,6 +897,7 @@ function defaultState() {
     inventory: seedInventory(),
     notes: {}, // saved memos by ingredient name — kept even after deleting the item
     savedRecipes: [], // PDFs the user made, grouped by mode in the cookbook
+    trashRecipes: [], // soft-deleted recipes, restorable from the cookbook
   };
 }
 
@@ -958,6 +971,7 @@ function normalizeState() {
   state.inventory = state.inventory || {};
   state.notes = state.notes || {};
   state.savedRecipes = Array.isArray(state.savedRecipes) ? state.savedRecipes : [];
+  state.trashRecipes = Array.isArray(state.trashRecipes) ? state.trashRecipes : [];
   ["fridge", "freezer", "sauce", "room"].forEach((type) => {
     state.inventory[type] = Array.isArray(state.inventory[type]) ? state.inventory[type] : [];
   });
@@ -1205,7 +1219,8 @@ function renderHome() {
 
 function renderCookbook() {
   const saved = state.savedRecipes || [];
-  if (!saved.length) {
+  const trash = state.trashRecipes || [];
+  if (!saved.length && !trash.length) {
     return `<section class="section"><div class="card empty">${t("cookbookEmpty")}</div></section>`;
   }
   const sections = cookModes
@@ -1229,7 +1244,28 @@ function renderCookbook() {
         </section>`;
     })
     .join("");
-  return `<p class="cookbook-hint">${t("cookbookHint")}</p>${sections}`;
+  const trashSection = trash.length
+    ? `
+      <section class="section">
+        <div class="section-head"><h2 class="section-title">${t("trashTitle")}</h2></div>
+        <p class="cookbook-hint">${t("trashHint")}</p>
+        <div class="recipe-list">
+          ${trash
+            .map(
+              (r) => `
+            <div class="recipe-row trash-row">
+              <span class="recipe-row-emoji">${r.image ? "🖼️" : "📄"}</span>
+              <span class="recipe-row-title">${escapeHtml(r.title)}</span>
+              <button class="ghost-pill recipe-restore" data-restore-recipe="${r.id}">↩ ${t("restoreRecipe")}</button>
+              <button class="recipe-del" data-purge-recipe="${r.id}" title="${t("purgeRecipe")}">✕</button>
+            </div>`
+            )
+            .join("")}
+        </div>
+      </section>`
+    : "";
+  const body = saved.length ? sections : "";
+  return `<p class="cookbook-hint">${t("cookbookHint")}</p>${body}${trashSection}`;
 }
 
 function renderStorageShortcut(key, type) {
@@ -2037,8 +2073,34 @@ function bindEvents() {
   document.querySelectorAll("[data-del-recipe]").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
+      if (!window.confirm(t("confirmDelete"))) return; // 한 번 더 확인
       const id = btn.dataset.delRecipe;
+      const rec = (state.savedRecipes || []).find((r) => r.id === id);
       state.savedRecipes = (state.savedRecipes || []).filter((r) => r.id !== id);
+      if (rec) {
+        state.trashRecipes = [rec, ...(state.trashRecipes || [])].slice(0, 30); // 휴지통 보관
+      }
+      saveState();
+      render();
+    });
+  });
+  document.querySelectorAll("[data-restore-recipe]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.restoreRecipe;
+      const rec = (state.trashRecipes || []).find((r) => r.id === id);
+      state.trashRecipes = (state.trashRecipes || []).filter((r) => r.id !== id);
+      if (rec) saveRecipeRecord(rec);
+      else { saveState(); render(); }
+      render();
+    });
+  });
+  document.querySelectorAll("[data-purge-recipe]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (!window.confirm(t("confirmPurge"))) return;
+      const id = btn.dataset.purgeRecipe;
+      state.trashRecipes = (state.trashRecipes || []).filter((r) => r.id !== id);
       saveState();
       render();
     });
@@ -2391,6 +2453,7 @@ function exportBackup() {
     savedAt: new Date().toISOString(),
     inventory: state.inventory,
     savedRecipes: state.savedRecipes || [],
+    trashRecipes: state.trashRecipes || [],
   }, null, 2);
   const blob = new Blob([payload], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -2428,6 +2491,12 @@ async function importBackup(input) {
       state.savedRecipes = state.savedRecipes || [];
       data.savedRecipes.forEach((r) => {
         if (r && r.id && !state.savedRecipes.some((x) => x.id === r.id)) state.savedRecipes.push(r);
+      });
+    }
+    if (Array.isArray(data.trashRecipes)) {
+      state.trashRecipes = state.trashRecipes || [];
+      data.trashRecipes.forEach((r) => {
+        if (r && r.id && !state.trashRecipes.some((x) => x.id === r.id)) state.trashRecipes.push(r);
       });
     }
     saveState();

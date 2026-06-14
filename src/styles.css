@@ -1268,6 +1268,8 @@ button {
   cursor: pointer;
   padding: 4px;
 }
+.trash-row { border-left-color: var(--soft); opacity: 0.92; }
+.recipe-restore { font-size: 12px; padding: 4px 8px; }
 
 /* Recipe viewer popup (pinch-zoom + drag) */
 .viewer-backdrop { padding: 0; }
