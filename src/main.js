@@ -95,6 +95,13 @@ const ko = {
   bottomRoom: "실온",
   bottomCookbook: "요리책",
   bottomDiet: "식단",
+  ownerOnly: "주인 전용",
+  ownerOnlyCopy: "이 메뉴는 잠겨 있어요.",
+  ownerLoginTitle: "주인 로그인",
+  ownerId: "아이디",
+  ownerPw: "비밀번호",
+  ownerLoginBtn: "로그인",
+  ownerLoginFail: "아이디 또는 비밀번호가 달라요.",
   dietTitle: "나의 하루 식단표",
   dietAddName: "음식",
   dietAddAmount: "분량",
@@ -271,6 +278,13 @@ const en = {
   bottomRoom: "Room",
   bottomCookbook: "Cookbook",
   bottomDiet: "Diet",
+  ownerOnly: "Owner only",
+  ownerOnlyCopy: "This menu is locked.",
+  ownerLoginTitle: "Owner login",
+  ownerId: "ID",
+  ownerPw: "Password",
+  ownerLoginBtn: "Log in",
+  ownerLoginFail: "Wrong ID or password.",
   dietTitle: "My daily diet log",
   dietAddName: "Food",
   dietAddAmount: "Amount",
@@ -786,6 +800,7 @@ let sheetDish = ""; // 만들고 싶은 요리/살 재료 — 없는 재료도 �
 function ymd(d) { const z = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`; }
 const DIET_CATS = [["breakfast", "🌅 아침"], ["lunch", "🌞 점심"], ["dinner", "🌙 저녁"], ["snack", "🍪 간식"], ["coffee", "☕ 커피"], ["water", "💧 물"]];
 const DIET_TARGETS = { kcal: 2000, carb: 300, protein: 55, fat: 50, water: 1500 };
+let titleTaps = 0; // 엘사의 식탁 7번 터치 → 주인 로그인
 let dietDate = ymd(new Date());
 let dietView = { y: new Date().getFullYear(), m: new Date().getMonth() };
 let sheetTitleText = ""; // 편집 가능한 요리 제목 (비면 dish/모드명 사용)
@@ -931,6 +946,7 @@ function defaultState() {
     savedRecipes: [], // PDFs the user made, grouped by mode in the cookbook
     trashRecipes: [], // soft-deleted recipes, restorable from the cookbook
     diet: {}, // daily food log keyed by YYYY-MM-DD
+    owner: false, // 주인 로그인 여부 (엘사)
   };
 }
 
@@ -1006,6 +1022,7 @@ function normalizeState() {
   state.savedRecipes = Array.isArray(state.savedRecipes) ? state.savedRecipes : [];
   state.trashRecipes = Array.isArray(state.trashRecipes) ? state.trashRecipes : [];
   state.diet = state.diet && typeof state.diet === "object" ? state.diet : {};
+  state.owner = !!state.owner;
   ["fridge", "freezer", "sauce", "room"].forEach((type) => {
     state.inventory[type] = Array.isArray(state.inventory[type]) ? state.inventory[type] : [];
   });
@@ -1151,7 +1168,7 @@ function trialDay() {
 }
 
 function canUseFeatures() {
-  return true; // 로그인/체험 게이트 제거 — 모든 기능 오픈
+  return !!state.owner; // 주인(엘사)만 잠금 해제
 }
 
 function maybeShowSignupPopup() {
@@ -1178,7 +1195,7 @@ function renderTopAuth() {
   return `
     <header class="top-auth">
       <button class="icon-pill auth-home" data-tab="home" aria-label="home">🏠</button>
-      <button class="icon-pill auth-right" data-action="toggle-lang">${t("lang")}</button>
+      ${state.owner ? `<button class="icon-pill auth-right" data-action="owner-logout" aria-label="logout">🔓</button>` : ""}
     </header>
   `;
 }
@@ -1189,14 +1206,14 @@ function renderPagePanel() {
   return `
     <section class="page-panel">
       ${showBackRow ? `<button class="back-button" data-action="back">${t("back")}</button>` : ""}
-      <h1 class="big-title">${titles.big}</h1>
+      <h1 class="big-title" data-title-tap>${titles.big}</h1>
     </section>
   `;
 }
 
 function getTitles() {
   if (selectedTab === "home") {
-    return { small: t("homeSmall"), big: "요리잼뱅이" };
+    return { small: t("homeSmall"), big: "엘사의 식탁" };
   }
   if (selectedTab === "cookbook") return { small: t("bottomCookbook"), big: t("cookbookTitle") };
   if (selectedTab === "diet") return { small: t("bottomDiet"), big: t("dietTitle") };
@@ -1849,6 +1866,21 @@ async function uploadRecipeToCloud(rec) {
   }
 }
 
+// Save the day's diet log to R2 as a dated text file (diet/YYYY-MM-DD.txt).
+function uploadDietDay(dateStr) {
+  try {
+    const items = dietItems(dateStr);
+    const body = `${dateStr}\n` + items.map((e) => e.name + (e.amount ? ` ${e.amount}` : "")).join("\n");
+    fetch(`${CLOUD_BASE}/?key=${encodeURIComponent(`diet/${dateStr}.txt`)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+      body,
+    }).catch(() => {});
+  } catch {
+    // offline — local save still holds it
+  }
+}
+
 // From the cook sheet: save to cookbook, open the print dialog, back up to cloud.
 function exportSheetPdf() {
   const rec = recipeFromSheet();
@@ -1962,9 +1994,8 @@ function renderGate() {
   return `
     <section class="card gate">
       <div>
-        <h2>${t("lockedTitle")}</h2>
-        <p>${t("lockedCopy")}</p>
-        <button class="pill" data-action="signup">${t("joinNow")}</button>
+        <h2>🔒 ${t("ownerOnly")}</h2>
+        <p>${t("ownerOnlyCopy")}</p>
       </div>
     </section>
   `;
@@ -1987,15 +2018,17 @@ function renderBottomNav() {
 }
 
 function bottomTab(key, emoji, label) {
+  const locked = key !== "home" && !canUseFeatures();
   return `
-    <button class="bottom-tab ${selectedTab === key ? "active" : ""}" data-tab="${key}">
-      <span class="emoji">${emoji}</span>
+    <button class="bottom-tab ${selectedTab === key ? "active" : ""} ${locked ? "locked" : ""}" data-tab="${key}">
+      <span class="emoji">${locked ? "🔒" : emoji}</span>
       <span class="label">${label}</span>
     </button>
   `;
 }
 
 function renderModal() {
+  if (modal === "ownerlogin") return renderOwnerLogin();
   if (modal?.startsWith("recipe:")) return renderRecipeViewer(modal.slice("recipe:".length));
   if (modal === "signup" || modal === "login") return renderAuthModal(modal);
   if (modal === "celebrate") return renderCelebrationModal();
@@ -2003,6 +2036,31 @@ function renderModal() {
   if (modal?.startsWith("websearch:")) return renderWebSearchModal(modal.split(":")[1], modal.split(":")[2]);
   if (modal?.startsWith("edit:")) return renderEditModal(modal.split(":")[1], modal.split(":")[2]);
   return "";
+}
+
+function renderOwnerLogin() {
+  return `
+    <div class="modal-backdrop">
+      <form class="modal" data-owner-login>
+        <h2>🔐 ${t("ownerLoginTitle")}</h2>
+        <div class="form-grid">
+          <div class="field">
+            <label>${t("ownerId")}</label>
+            <input name="id" autocomplete="off" required />
+          </div>
+          <div class="field">
+            <label>${t("ownerPw")}</label>
+            <input name="pw" type="password" autocomplete="off" required />
+          </div>
+        </div>
+        <p class="owner-login-msg" data-owner-msg></p>
+        <div class="modal-actions">
+          <button type="button" class="ghost-pill" data-action="close-modal">${t("cancel")}</button>
+          <button type="submit" class="pill">${t("ownerLoginBtn")}</button>
+        </div>
+      </form>
+    </div>
+  `;
 }
 
 function renderRecipeViewer(id) {
@@ -2241,13 +2299,42 @@ function bindEvents() {
   document.querySelectorAll("[data-tab]").forEach((button) => {
     button.addEventListener("click", () => {
       const next = button.dataset.tab;
-      if (next !== "home" && !canUseFeatures()) {
-        selectedTab = next;
-      } else {
-        selectedTab = next;
-        if (next === "cold" && !["fridge", "freezer"].includes(selectedStorage)) selectedStorage = "fridge";
-      }
+      if (next !== "home" && !canUseFeatures()) return; // 잠금: 진입 불가
+      selectedTab = next;
+      if (next === "cold" && !["fridge", "freezer"].includes(selectedStorage)) selectedStorage = "fridge";
       render();
+    });
+  });
+  document.querySelectorAll("[data-title-tap]").forEach((el) => {
+    el.addEventListener("click", () => {
+      if (state.owner) return;
+      titleTaps += 1;
+      if (titleTaps >= 7) { titleTaps = 0; modal = "ownerlogin"; render(); }
+    });
+  });
+  document.querySelectorAll("[data-owner-login]").forEach((form) => {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const f = new FormData(form);
+      const msg = form.querySelector("[data-owner-msg]");
+      try {
+        const res = await fetch(`${CLOUD_BASE}/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: String(f.get("id") || "").trim(), pw: String(f.get("pw") || "") }),
+        });
+        const data = await res.json();
+        if (data && data.ok) {
+          state.owner = true;
+          saveState();
+          modal = null;
+          render();
+        } else if (msg) {
+          msg.textContent = t("ownerLoginFail");
+        }
+      } catch {
+        if (msg) msg.textContent = t("ownerLoginFail");
+      }
     });
   });
   document.querySelectorAll("[data-storage-jump]").forEach((button) => {
@@ -2374,6 +2461,7 @@ function bindEvents() {
       const items = dietItems(dietDate);
       state.diet[dietDate].items = items.filter((e) => String(e.id) !== id);
       saveState();
+      uploadDietDay(dietDate);
       render();
     });
   });
@@ -2392,6 +2480,7 @@ function bindEvents() {
         state.diet[dietDate].items.push({ id: `${Date.now()}-${i}`, name, amount: "", kcal: "" })
       );
       saveState();
+      uploadDietDay(dietDate);
       render();
     });
   });
@@ -2720,6 +2809,11 @@ async function handleAction(event) {
     modal = null;
   }
   if (action === "close-modal") modal = null;
+  if (action === "owner-logout") {
+    state.owner = false;
+    selectedTab = "home";
+    saveState();
+  }
   if (action === "back") {
     selectedTab = selectedTab === "home" ? "home" : "home";
   }

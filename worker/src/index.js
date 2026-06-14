@@ -30,6 +30,12 @@ export default {
     const list = url.searchParams.get("list");
 
     try {
+      if (request.method === "POST" && url.pathname.endsWith("/login")) {
+        const b = await request.json().catch(() => ({}));
+        const ok = !!env.OWNER_ID && b.id === env.OWNER_ID && b.pw === env.OWNER_PW;
+        return json({ ok });
+      }
+
       if (request.method === "PUT") {
         if (!key) return json({ ok: false, error: "missing key" }, 400);
         const body = await request.text();
