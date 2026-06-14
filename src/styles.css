@@ -293,7 +293,7 @@ button {
 .big-title {
   margin: 0;
   color: var(--green-brand);
-  font-size: 16.2px; /* 요리 종류 고르기와 동일(18px의 90%) — 4개 탭 공통, 가운데 정렬 */
+  font-size: 30px; /* 4개 탭 공통 페이지 타이틀, 가운데 정렬 */
   line-height: 1.18;
   font-weight: 700;
   letter-spacing: -0.03em;
@@ -1630,7 +1630,7 @@ button {
   }
 
   .big-title {
-    font-size: 16.2px;
+    font-size: 30px;
     line-height: 1.16;
     white-space: normal;
     word-break: keep-all;
