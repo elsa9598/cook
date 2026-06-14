@@ -841,6 +841,53 @@ button {
   resize: vertical;
 }
 
+/* Cooking sheet: ingredient checklist + memo + prompt + PDF */
+.sheet-group {
+  margin-top: 12px;
+}
+
+.sheet-group-title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+
+.sheet-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sheet-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-btn);
+  padding: 8px 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.sheet-check.on {
+  border-color: var(--m-blue-dark);
+  background: var(--green-light);
+}
+
+.sheet-check input {
+  accent-color: var(--m-blue-dark);
+}
+
+.sheet-image {
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  margin-top: 4px;
+}
+
 /* Recipe carousel (swipe to browse a mode's dishes) */
 .carousel {
   display: grid;

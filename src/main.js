@@ -136,6 +136,15 @@ const ko = {
   swipeHint: "← → 밀어서 다른 요리 보기",
   clearEmpty: "냉장고·냉동고에 재료를 먼저 넣어주세요.",
   recipeCarousel: "요리 고르기",
+  pickIngredients: "재료 체크",
+  searchRecipe: "구글에서 요리법 검색",
+  recipeMemoLabel: "요리법 (검색해서 복사·붙여넣기)",
+  visualPromptLabel: "영어 비주얼 프롬프트 (이미지 생성용)",
+  attachImage: "비주얼 사진 첨부",
+  savePdf: "A4 PDF로 저장",
+  sheetEmptyIng: "이 보관함에 재료가 없어요.",
+  imagePlaceholder: "여기에 비주얼 사진",
+  copyPromptShort: "프롬프트 복사",
 };
 
 const en = {
@@ -270,6 +279,15 @@ const en = {
   swipeHint: "Swipe ← → to see more dishes",
   clearEmpty: "Add fridge/freezer items first.",
   recipeCarousel: "Choose a dish",
+  pickIngredients: "Check ingredients",
+  searchRecipe: "Search recipe on Google",
+  recipeMemoLabel: "Recipe (search, copy & paste)",
+  visualPromptLabel: "English visual prompt (for image gen)",
+  attachImage: "Attach visual photo",
+  savePdf: "Save as A4 PDF",
+  sheetEmptyIng: "No items in this storage.",
+  imagePlaceholder: "Visual photo here",
+  copyPromptShort: "Copy prompt",
 };
 
 const storageTypes = {
@@ -690,6 +708,11 @@ let pendingPhoto = null; // { type, file, dataUrl }
 let recipeMode = null;
 let carouselIndex = 0;
 let clearoutOptions = [];
+// Cooking sheet: check ingredients -> google search -> memo + prompt + A4 PDF.
+let sheetMode = null;
+let sheetChecked = new Set(); // "type:id"
+let sheetMemo = "";
+let sheetImage = null; // dataUrl
 
 // Always-present basic seasonings (fixed, can't be deleted). Defined before
 // normalizeState() runs so ensureStaples() can read it. Spices/sauces beyond
@@ -998,6 +1021,10 @@ function getTitles() {
     const m = cookModes.find(([key]) => key === recipeMode);
     return { small: t("recipeCarousel"), big: m ? (state.lang === "ko" ? m[1] : m[2]) : t("recipeCarousel") };
   }
+  if (selectedTab === "cooksheet") {
+    const m = cookModes.find(([key]) => key === sheetMode);
+    return { small: t("recipeCarousel"), big: m ? (state.lang === "ko" ? m[1] : m[2]) : t("recipeCarousel") };
+  }
   if (selectedTab === "recipe") return { small: t("recipeSmall"), big: recipe?.title || t("cookStart") };
   return { small: t("homeSmall"), big: t("homeBig") };
 }
@@ -1009,6 +1036,7 @@ function renderCurrentPage() {
   if (selectedTab === "sauce") return renderSaucePage();
   if (selectedTab === "room") return renderStoragePage("room");
   if (selectedTab === "carousel") return renderCarousel();
+  if (selectedTab === "cooksheet") return renderCookSheet();
   if (selectedTab === "recipe") return renderRecipePage();
   return renderHome();
 }
@@ -1218,6 +1246,94 @@ function renderAddForm(type) {
 function renderSaucePage() {
   // Same grid + filter layout as the fridge/freezer/room pages.
   return renderStoragePage("sauce");
+}
+
+function renderCookSheet() {
+  const mode = sheetMode;
+  const modeKo = (cookModes.find((m) => m[0] === mode) || [])[1] || "요리";
+  const groups = [["fridge", `🧊 ${t("fridgeBig")}`], ["freezer", `❄️ ${t("freezerBig")}`], ["room", `🌡 ${t("roomBig")}`]];
+  const checkedNames = sheetCheckedNames();
+  const prompt = buildSheetPrompt(mode, checkedNames);
+  const groupsHtml = groups.map(([type, label]) => {
+    const items = state.inventory[type];
+    return `
+      <div class="sheet-group">
+        <div class="sheet-group-title">${label}</div>
+        ${items.length ? `<div class="sheet-checks">${items.map((it) => `
+          <label class="sheet-check ${sheetChecked.has(`${type}:${it.id}`) ? "on" : ""}">
+            <input type="checkbox" data-sheet-check="${type}:${it.id}" ${sheetChecked.has(`${type}:${it.id}`) ? "checked" : ""} />
+            <span>${itemEmoji(it, type)} ${displayName(it.name)}</span>
+          </label>`).join("")}</div>` : `<p class="photo-help">${t("sheetEmptyIng")}</p>`}
+      </div>`;
+  }).join("");
+  return `
+    <section class="section">
+      <div class="section-head"><h2 class="section-title">${t("pickIngredients")}</h2></div>
+      ${groupsHtml}
+      <button class="pill" style="width:100%; margin-top:12px" data-sheet-search>🔎 ${t("searchRecipe")}</button>
+    </section>
+    <section class="section card">
+      <div class="field">
+        <label>${t("recipeMemoLabel")}</label>
+        <textarea data-sheet-memo rows="7" placeholder="${t("itemMemoPlaceholder")}">${escapeHtml(sheetMemo)}</textarea>
+      </div>
+      <div class="field">
+        <label>${t("visualPromptLabel")}</label>
+        <textarea readonly rows="4" data-sheet-prompt>${escapeHtml(prompt)}</textarea>
+        <button class="ghost-pill" style="margin-top:8px" data-sheet-copyprompt>${t("copyPromptShort")}</button>
+      </div>
+      <div class="field">
+        <label>${t("attachImage")}</label>
+        ${sheetImage ? `<img class="sheet-image" src="${sheetImage}" alt="visual" />` : ""}
+        <label class="ghost-pill backup-restore" style="margin-top:8px">⬆ ${t("attachImage")}
+          <input type="file" accept="image/*" data-sheet-image />
+        </label>
+      </div>
+      <button class="pill" style="width:100%; margin-top:12px" data-sheet-pdf>📄 ${t("savePdf")}</button>
+    </section>
+  `;
+}
+
+function exportSheetPdf() {
+  const mode = sheetMode;
+  const modeKo = (cookModes.find((m) => m[0] === mode) || [])[1] || "요리";
+  const names = sheetCheckedNames().map(displayName);
+  const memo = escapeHtml(sheetMemo || "").replaceAll("\n", "<br>");
+  const prompt = escapeHtml(buildSheetPrompt(mode, sheetCheckedNames()));
+  const imgHtml = sheetImage
+    ? `<img src="${sheetImage}" style="max-width:100%; max-height:90mm; object-fit:contain; border:1px solid #ccc;" />`
+    : `<div style="height:80mm; border:1px dashed #aaa; display:flex; align-items:center; justify-content:center; color:#999;">${t("imagePlaceholder")}</div>`;
+  const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${modeKo} 요리</title>
+    <style>
+      @page { size: A4; margin: 16mm; }
+      * { box-sizing: border-box; }
+      body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; color: #111; line-height: 1.5; }
+      h1 { font-size: 24px; margin: 0 0 4px; }
+      h2 { font-size: 15px; margin: 18px 0 6px; border-bottom: 2px solid #111; padding-bottom: 3px; }
+      ul { margin: 0; padding-left: 18px; }
+      li { margin: 2px 0; }
+      .memo { white-space: pre-wrap; font-size: 13px; }
+      .prompt { font-size: 11px; color: #555; }
+      .top-line { height: 4px; background: linear-gradient(90deg,#0066b1 33%,#1c69d4 33% 66%,#e22718 66%); margin-bottom: 10px; }
+    </style></head>
+    <body>
+      <div class="top-line"></div>
+      <h1>${modeKo} 요리</h1>
+      <h2>재료</h2>
+      ${names.length ? `<ul>${names.map((n) => `<li>${escapeHtml(n)}</li>`).join("")}</ul>` : "<p>-</p>"}
+      <h2>요리법</h2>
+      <div class="memo">${memo || "-"}</div>
+      <h2>비주얼 이미지</h2>
+      ${imgHtml}
+      <h2>영어 프롬프트</h2>
+      <div class="prompt">${prompt}</div>
+      <script>window.onload=function(){setTimeout(function(){window.print();},300);};<\/script>
+    </body></html>`;
+  const w = window.open("", "_blank");
+  if (!w) return;
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
 }
 
 function renderCarousel() {
@@ -1567,7 +1683,52 @@ function bindEvents() {
   document.querySelectorAll("[data-cook]").forEach((button) => {
     button.addEventListener("click", () => {
       selectedCookMode = button.dataset.cook;
-      openCarousel(button.dataset.cook);
+      openCookSheet(button.dataset.cook);
+    });
+  });
+  document.querySelectorAll("[data-sheet-check]").forEach((box) => {
+    box.addEventListener("change", () => {
+      const memoEl = document.querySelector("[data-sheet-memo]");
+      if (memoEl) sheetMemo = memoEl.value;
+      const key = box.dataset.sheetCheck;
+      if (box.checked) sheetChecked.add(key); else sheetChecked.delete(key);
+      render();
+    });
+  });
+  document.querySelectorAll("[data-sheet-memo]").forEach((ta) => {
+    ta.addEventListener("input", () => { sheetMemo = ta.value; });
+  });
+  document.querySelectorAll("[data-sheet-search]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const memoEl = document.querySelector("[data-sheet-memo]");
+      if (memoEl) sheetMemo = memoEl.value;
+      const modeKo = (cookModes.find((m) => m[0] === sheetMode) || [])[1] || "";
+      const names = sheetCheckedNames().map(displayName).join(" ");
+      const q = encodeURIComponent(`${modeKo} 요리법 ${names}`.trim());
+      window.open(`https://www.google.com/search?q=${q}`, "_blank", "noopener,noreferrer");
+    });
+  });
+  document.querySelectorAll("[data-sheet-copyprompt]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await copyText(buildSheetPrompt(sheetMode, sheetCheckedNames()));
+      button.textContent = t("copied");
+    });
+  });
+  document.querySelectorAll("[data-sheet-image]").forEach((input) => {
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const memoEl = document.querySelector("[data-sheet-memo]");
+      if (memoEl) sheetMemo = memoEl.value;
+      sheetImage = (await fileToThumbDataUrl(file, 900, 0.8)) || (await fileToDataUrl(file));
+      render();
+    });
+  });
+  document.querySelectorAll("[data-sheet-pdf]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const memoEl = document.querySelector("[data-sheet-memo]");
+      if (memoEl) sheetMemo = memoEl.value;
+      exportSheetPdf();
     });
   });
   document.querySelectorAll("[data-carousel]").forEach((button) => {
@@ -1790,7 +1951,7 @@ async function handleAction(event) {
     if (!canUseFeatures()) {
       modal = "signup";
     } else {
-      openCarousel(selectedCookMode || "fridgeClean");
+      openCookSheet(selectedCookMode || "fridgeClean");
     }
     return;
   }
@@ -2121,6 +2282,29 @@ function buildClearout(servings) {
 
 function allInventoryNames() {
   return ["fridge", "freezer", "sauce", "room"].flatMap((type) => state.inventory[type].map((x) => x.name));
+}
+
+function openCookSheet(mode) {
+  sheetMode = mode;
+  sheetChecked = new Set();
+  sheetMemo = "";
+  sheetImage = null;
+  selectedTab = "cooksheet";
+  render();
+}
+
+function sheetCheckedNames() {
+  const names = [];
+  ["fridge", "freezer", "room"].forEach((type) => {
+    state.inventory[type].forEach((it) => { if (sheetChecked.has(`${type}:${it.id}`)) names.push(it.name); });
+  });
+  return names;
+}
+
+function buildSheetPrompt(mode, names) {
+  const en = names.map((n) => ingredientTranslations[n] || EN_NAME[n] || n).join(", ");
+  const modeEn = (cookModes.find((m) => m[0] === mode) || [])[2] || "home cooking";
+  return `A mouthwatering ${modeEn} dish made with ${en || "home ingredients"}, plated on a clean dish, glossy textures, fresh garnish, appetizing colors, realistic home-kitchen lighting, high detail, no text, no watermark, no hands. Generate in 1:1 square aspect ratio (1:1 비율로 생성).`;
 }
 
 function openCarousel(mode) {
