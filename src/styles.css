@@ -104,9 +104,28 @@ button {
   justify-self: center;
   font-size: 18px;
   font-weight: 700;
-  color: var(--ink);
   letter-spacing: 0.5px;
   white-space: nowrap;
+  cursor: pointer;
+  /* M tricolor flowing gradient text */
+  background: linear-gradient(90deg, #0066b1, #1c69d4, #e22718, #1c69d4, #0066b1);
+  background-size: 250% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: elsaFlow 4s linear infinite, elsaWiggle 2.6s ease-in-out infinite;
+  transform-origin: center;
+}
+@keyframes elsaFlow {
+  to { background-position: 250% center; }
+}
+@keyframes elsaWiggle {
+  0%, 100% { transform: rotate(-2.5deg) scale(1); }
+  50% { transform: rotate(2.5deg) scale(1.07); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-title { animation: elsaFlow 6s linear infinite; }
 }
 .auth-right { justify-self: end; min-width: 40px; }
 .bottom-tab.locked { opacity: 0.45; }
