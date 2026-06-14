@@ -726,6 +726,65 @@ const STAPLE_SAUCES = [
   ["멸치다시다", 1, "통"], ["고춧가루", 1, "통"], ["깨소금", 1, "통"],
 ];
 
+// --- Pasted-recipe ingredient & amount extraction --------------------------
+// Lets the user paste a recipe text; we pull out ingredient names + their
+// amounts (and seasoning amounts) and merge them into the printed 재료 list.
+const SEASONING_NAMES = new Set([
+  ...STAPLE_SAUCES.map((s) => s[0]),
+  ...(INGREDIENT_DB.sauce || []).map((it) => it.name),
+]);
+const ALL_KNOWN_NAMES = (() => {
+  const set = new Set(STAPLE_SAUCES.map((s) => s[0]));
+  for (const list of Object.values(INGREDIENT_DB)) for (const it of list) set.add(it.name);
+  return [...set].sort((a, b) => b.length - a.length); // 방울토마토 before 토마토
+})();
+const QTY_SRC =
+  "(?:\\d+(?:[.,/]\\d+)?(?:\\s?~\\s?\\d+(?:[.,/]\\d+)?)?\\s?(?:큰술|작은술|티스푼|테이블스푼|스푼|컵|개|쪽|톨|줌|마리|봉지|봉|꼬집|모|단|줄|장|g|kg|ml|mL|L|cc))|약간|적당량|적당히|조금|소량";
+
+function memoTokenOk(text, idx, name) {
+  const isH = (c) => c >= "가" && c <= "힣";
+  const prev = idx > 0 ? text[idx - 1] : "";
+  if (prev && isH(prev)) return false; // name must start a token (안 "토마토" in "방울토마토")
+  const after = text.slice(idx + name.length);
+  const next = after[0] || "";
+  if (!next || !isH(next)) return true; // space / punctuation / number / end
+  return /^(을|를|은|는|이|가|에|와|과|도|로|만|의|랑|이랑|에서|으로|이나|나|째)/.test(after);
+}
+
+function extractMemoIngredients(memo) {
+  const text = String(memo || "");
+  if (!text.trim()) return [];
+  const qtyAfter = new RegExp(QTY_SRC);
+  const qtyEnd = new RegExp("(?:" + QTY_SRC + ")\\s*$");
+  const found = [];
+  const seen = new Set();
+  for (const name of ALL_KNOWN_NAMES) {
+    let from = 0;
+    let idx;
+    while ((idx = text.indexOf(name, from)) >= 0) {
+      from = idx + name.length;
+      if (!memoTokenOk(text, idx, name)) continue;
+      const lineStart = text.lastIndexOf("\n", idx) + 1;
+      let lineEnd = text.indexOf("\n", idx);
+      if (lineEnd < 0) lineEnd = text.length;
+      const seg = text.slice(idx + name.length, lineEnd).split(/[,，、·]/)[0];
+      let amount = "";
+      const m = seg.match(qtyAfter);
+      if (m) amount = m[0].replace(/\s+/g, "");
+      if (!amount) {
+        const pre = text.slice(lineStart, idx).split(/[,，、·]/).pop();
+        const pm = pre.match(qtyEnd);
+        if (pm) amount = pm[0].replace(/\s+/g, "");
+      }
+      found.push({ name, amount });
+      seen.add(name);
+      break;
+    }
+  }
+  const names = found.map((f) => f.name);
+  return found.filter((f) => !names.some((o) => o !== f.name && o.includes(f.name)));
+}
+
 normalizeState();
 registerServiceWorker();
 requestPersistentStorage();
@@ -1297,8 +1356,35 @@ function renderCookSheet() {
 function exportSheetPdf() {
   const mode = sheetMode;
   const modeKo = (cookModes.find((m) => m[0] === mode) || [])[1] || "요리";
-  const names = sheetCheckedNames().map(displayName);
   const memo = escapeHtml(sheetMemo || "").replaceAll("\n", "<br>");
+
+  // Merge checked pantry items (with their stocked amount) and ingredients
+  // parsed out of the pasted recipe text — including ones not in the pantry.
+  const byName = new Map();
+  const addItem = (name, amount) => {
+    if (!name) return;
+    const cur = byName.get(name);
+    if (!cur) byName.set(name, { name, amount: amount || "" });
+    else if (!cur.amount && amount) cur.amount = amount;
+  };
+  for (const key of sheetChecked) {
+    const ci = key.indexOf(":");
+    const type = key.slice(0, ci);
+    const id = key.slice(ci + 1);
+    const it = (state.inventory[type] || []).find((x) => String(x.id) === id);
+    if (it) addItem(it.name, it.amount ? `${it.amount}${it.unit || ""}` : "");
+  }
+  for (const e of extractMemoIngredients(sheetMemo)) addItem(e.name, e.amount);
+  const allItems = [...byName.values()];
+  const ingList = allItems.filter((e) => !SEASONING_NAMES.has(e.name));
+  const seaList = allItems.filter((e) => SEASONING_NAMES.has(e.name));
+  const rowHtml = (list) =>
+    list
+      .map(
+        (e) =>
+          `<li>${escapeHtml(displayName(e.name))}${e.amount ? ` <span class="amt">${escapeHtml(e.amount)}</span>` : ""}</li>`
+      )
+      .join("");
   const imgHtml = sheetImage
     ? `<div class="imgwrap"><img src="${sheetImage}" /></div>`
     : `<div class="imgwrap"><div class="img-ph">${t("imagePlaceholder")}</div></div>`;
@@ -1312,6 +1398,7 @@ function exportSheetPdf() {
       h2 { font-size: 13px; font-weight: 700; color: #ffffff; letter-spacing: 1.2px; margin: 22px 0 10px; padding-bottom: 7px; border-bottom: 1px solid #3c3c3c; }
       ul { margin: 0; padding-left: 18px; }
       li { color: #e6e6e6; font-size: 15px; line-height: 1.6; margin: 3px 0; }
+      .amt { color: #1c69d4; font-weight: 700; margin-left: 6px; }
       .memo { white-space: pre-wrap; font-size: 16px; line-height: 1.75; color: #e6e6e6; }
       .m-stripe { height: 4px; background: linear-gradient(90deg,#0066b1 0 33%,#1c69d4 33% 66%,#e22718 66% 100%); margin-bottom: 16px; }
       .imgwrap { text-align: center; margin: 4px 0 0; }
@@ -1322,7 +1409,8 @@ function exportSheetPdf() {
       <div class="m-stripe"></div>
       <h1>${modeKo} 요리</h1>
       <h2>재료</h2>
-      ${names.length ? `<ul>${names.map((n) => `<li>${escapeHtml(n)}</li>`).join("")}</ul>` : "<p>-</p>"}
+      ${ingList.length ? `<ul>${rowHtml(ingList)}</ul>` : "<p>-</p>"}
+      ${seaList.length ? `<h2>양념</h2><ul>${rowHtml(seaList)}</ul>` : ""}
       <h2>요리법</h2>
       <div class="memo">${memo || "-"}</div>
       <h2>비주얼 이미지</h2>
