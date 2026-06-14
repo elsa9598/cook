@@ -224,8 +224,10 @@ button {
 
 .hero-band {
   background: var(--green-house);
-  color: var(--white);
-  border-radius: 24px;
+  color: var(--ink);
+  border: 1px solid var(--hairline);
+  border-left: 4px solid var(--m-red);
+  border-radius: var(--radius-card);
   padding: 24px 20px;
 }
 
