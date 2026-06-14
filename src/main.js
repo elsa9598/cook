@@ -1912,14 +1912,18 @@ function bindEvents() {
   document.querySelectorAll("[data-sheet-memo]").forEach((ta) => {
     ta.addEventListener("input", () => { sheetMemo = ta.value; });
   });
+  const refreshPrompt = () => {
+    const p = document.querySelector("[data-sheet-prompt]");
+    if (p) p.value = buildSheetPrompt(sheetMode, sheetCheckedNames());
+  };
   document.querySelectorAll("[data-sheet-title]").forEach((inp) => {
-    inp.addEventListener("input", () => { sheetTitleText = inp.value; });
+    inp.addEventListener("input", () => { sheetTitleText = inp.value; refreshPrompt(); });
   });
   document.querySelectorAll("[data-sheet-ings]").forEach((ta) => {
     ta.addEventListener("input", () => { sheetIngredientsText = ta.value; });
   });
   document.querySelectorAll("[data-sheet-steps]").forEach((ta) => {
-    ta.addEventListener("input", () => { sheetStepsText = ta.value; });
+    ta.addEventListener("input", () => { sheetStepsText = ta.value; refreshPrompt(); });
   });
   document.querySelectorAll("[data-sheet-organize]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -2561,18 +2565,58 @@ function sheetCheckedNames() {
   return names;
 }
 
+// Read the Korean cooking steps and describe the dish's FORM and TECHNIQUE in
+// English so the generated image matches how it's actually made/served.
+function describeMethodEN(text) {
+  const s = String(text || "");
+  const forms = [
+    [/속을?\s*(파|도려|긁)|움푹|속을?\s*채우|채워\s*(넣|찌|구|쪄)/, "presented as a whole vegetable hollowed out and stuffed with a colorful filling"],
+    [/식빵|로프|반죽|발효|베이킹|구운\s*빵/, "presented as a golden baked bread loaf"],
+    [/덮밥/, "served over steamed white rice in a bowl"],
+    [/비빔|비벼/, "presented as a vibrant mixed rice bowl"],
+    [/김밥|롤\b|말아/, "presented as neat rolled bite-size slices"],
+    [/전\b|부침|지짐/, "presented as a golden pan-fried savory pancake"],
+    [/샐러드/, "presented as a fresh crisp salad"],
+    [/국\b|탕\b|찌개|스튜|스프|수프/, "served hot in a bowl of savory broth"],
+    [/깍둑/, "with the ingredients cut into neat cubes"],
+    [/채\s*썰|채썰/, "with the ingredients julienned into thin strips"],
+  ];
+  const techs = [
+    [/찌\b|찜|쪄|스팀/, "steamed"],
+    [/굽|구이|오븐|로스트|로스팅/, "oven-baked"],
+    [/튀기|튀김/, "deep-fried until crispy"],
+    [/볶/, "stir-fried"],
+    [/조리|조림|졸여|졸이/, "braised in a glossy sauce"],
+    [/끓이|삶/, "gently simmered"],
+    [/무치|무침/, "lightly seasoned and tossed"],
+    [/그릴|석쇠/, "grilled with light char marks"],
+  ];
+  let form = "";
+  for (const [re, ph] of forms) if (re.test(s)) { form = ph; break; }
+  const t = [];
+  for (const [re, ph] of techs) if (re.test(s) && t.length < 2) t.push(ph);
+  const parts = [];
+  if (form) parts.push(form);
+  if (t.length) parts.push("cooked by being " + t.join(" then "));
+  return parts.join(", ");
+}
+
 function buildSheetPrompt(mode, names) {
   const en = names.map((n) => ingredientTranslations[n] || EN_NAME[n] || n).join(", ");
   const modeEn = (cookModes.find((m) => m[0] === mode) || [])[2] || "home cooking";
   const dish = (sheetTitleText || sheetDish || "").trim();
   const dishPart = dish ? `the dish "${dish}"` : `a ${modeEn} dish`;
   const withPart = en ? ` made with ${en}` : "";
+  const methodSrc = (sheetStepsText && sheetStepsText.trim()) || sheetMemo || "";
+  const methodEN = describeMethodEN(methodSrc);
+  const methodPart = methodEN ? `, ${methodEN}` : "";
   return (
-    `Professional food photography of ${dishPart}${withPart}, freshly cooked and still steaming, ` +
-    `beautifully plated on an elegant ceramic plate, glossy juicy textures, vibrant fresh colors, ` +
-    `garnished with fresh herbs, shot on an 85mm macro lens at f/2.8 with shallow depth of field and ` +
-    `soft natural window light, styled like a Michelin-star restaurant dish, extremely appetizing and ` +
-    `mouthwatering, hyper-realistic, sharp focus, fine detail, 8k, food-magazine quality. ` +
+    `Professional food photography of ${dishPart}${withPart}${methodPart}. ` +
+    `Show the dish in its correct final cooked form as described. ` +
+    `Freshly made, beautifully plated, glossy appetizing textures, vibrant fresh colors, ` +
+    `shot on an 85mm macro lens at f/2.8 with shallow depth of field and soft natural window light, ` +
+    `styled like a Michelin-star restaurant dish, extremely appetizing and mouthwatering, ` +
+    `hyper-realistic, sharp focus, fine detail, 8k, food-magazine quality. ` +
     `No text, no watermark, no hands. Generate in 1:1 square aspect ratio (1:1 비율로 생성).`
   );
 }
