@@ -102,7 +102,7 @@ button {
 }
 .auth-title {
   justify-self: center;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--ink);
   letter-spacing: 0.5px;
