@@ -1129,7 +1129,7 @@ function renderTopAuth() {
   // 로그인/가입 제거 — 언어 토글만 유지.
   return `
     <header class="top-auth">
-      <span class="auth-brand">요리잼뱅이</span>
+      <button class="icon-pill auth-home" data-tab="home" aria-label="home">🏠</button>
       <button class="icon-pill auth-right" data-action="toggle-lang">${t("lang")}</button>
     </header>
   `;
@@ -1148,10 +1148,7 @@ function renderPagePanel() {
 
 function getTitles() {
   if (selectedTab === "home") {
-    return {
-      small: state.user ? "Premium" : t("homeSmall"),
-      big: state.user ? t("premiumBig") : t("homeBig"),
-    };
+    return { small: t("homeSmall"), big: "요리잼뱅이" };
   }
   if (selectedTab === "cookbook") return { small: t("bottomCookbook"), big: t("cookbookTitle") };
   if (selectedTab === "cold") {

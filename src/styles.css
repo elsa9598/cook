@@ -96,12 +96,9 @@ button {
   border-image: linear-gradient(90deg, var(--m-blue-light) 0 33.3%, var(--m-blue-dark) 33.3% 66.6%, var(--m-red) 66.6% 100%) 1;
 }
 
-.auth-brand {
+.auth-home {
   justify-self: start;
-  font-weight: 700;
-  font-size: 18px;
-  letter-spacing: 0.5px;
-  color: var(--ink);
+  font-size: 20px;
 }
 
 .auth-left {
