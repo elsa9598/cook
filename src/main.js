@@ -1177,10 +1177,6 @@ function renderCurrentPage() {
 function renderHome() {
   const locked = !canUseFeatures();
   return `
-    <section class="hero-band">
-      <h2 class="hero-title"><span>${t("heroTitleLine1")}</span><span>${t("heroTitleLine2")}</span></h2>
-      <p>${t("heroCopy")}</p>
-    </section>
     <section class="trial-strip">
       <div>
         <strong>${state.user ? "Premium" : locked ? t("signupRequired") : `${t("trial")} ${trialDay()}/3`}</strong>
@@ -1189,16 +1185,6 @@ function renderHome() {
       ${state.user ? "" : `<button class="pill" data-action="signup">${t("joinNow")}</button>`}
     </section>
     ${locked ? renderGate() : ""}
-    <section class="section">
-      <div class="section-head">
-        <h2 class="section-title">${t("storageNow")}</h2>
-      </div>
-      <div class="grid-2">
-        ${Object.entries(storageTypes)
-          .map(([key, type]) => renderStorageShortcut(key, type))
-          .join("")}
-      </div>
-    </section>
     <section class="section">
       <div class="section-head">
         <h2 class="section-title">${t("pickType")}</h2>
@@ -1384,32 +1370,14 @@ function renderSaucePage() {
 function renderCookSheet() {
   const mode = sheetMode;
   const modeKo = (cookModes.find((m) => m[0] === mode) || [])[1] || "요리";
-  const groups = [["fridge", `🧊 ${t("fridgeBig")}`], ["freezer", `❄️ ${t("freezerBig")}`], ["room", `🌡 ${t("roomBig")}`]];
-  const checkedNames = sheetCheckedNames();
-  const prompt = buildSheetPrompt(mode, checkedNames);
-  const groupsHtml = groups.map(([type, label]) => {
-    const items = state.inventory[type];
-    return `
-      <div class="sheet-group">
-        <div class="sheet-group-title">${label}</div>
-        ${items.length ? `<div class="sheet-checks">${items.map((it) => `
-          <label class="sheet-check ${sheetChecked.has(`${type}:${it.id}`) ? "on" : ""}">
-            <input type="checkbox" data-sheet-check="${type}:${it.id}" ${sheetChecked.has(`${type}:${it.id}`) ? "checked" : ""} />
-            <span>${itemEmoji(it, type)} ${displayName(it.name)}</span>
-          </label>`).join("")}</div>` : `<p class="photo-help">${t("sheetEmptyIng")}</p>`}
-      </div>`;
-  }).join("");
+  const prompt = buildSheetPrompt(mode, []);
   return `
     <section class="section card">
       <div class="field">
         <label>${t("dishLabel")}</label>
         <input type="text" data-sheet-dish value="${escapeAttr(sheetDish)}" placeholder="${escapeAttr(t("dishPlaceholder"))}" />
       </div>
-    </section>
-    <section class="section">
-      <div class="section-head"><h2 class="section-title">${t("pickIngredients")}</h2></div>
-      ${groupsHtml}
-      <button class="pill" style="width:100%; margin-top:12px" data-sheet-search>🔎 ${t("searchRecipe")}</button>
+      <button class="pill" style="width:100%; margin-top:8px" data-sheet-search>🔎 ${t("searchRecipe")}</button>
     </section>
     <section class="section card">
       <div class="field">
@@ -1446,28 +1414,67 @@ function renderCookSheet() {
   `;
 }
 
-// Merge checked pantry items (with stocked amount) + ingredients parsed from the
-// pasted recipe (including ones not in the pantry). 재료 먼저, 양념 뒤.
+// Read the whole "재료" section of the pasted recipe — captures every listed
+// ingredient (even ones with no amount or not in the DB), stopping before the
+// cooking steps.
+function extractIngredientSection(memo) {
+  const text = String(memo || "").replace(/\r/g, "\n");
+  const head = /(필수\s*재료|주\s*재료|재료\s*준비|준비\s*재료|준비물|재료)/;
+  const hm = head.exec(text);
+  if (!hm) return [];
+  let rest = text.slice(hm.index + hm[0].length);
+  // Cut before the cooking steps / next section.
+  const endRe = /(만드는\s*방법|만드는\s*법|조리\s*방법|조리\s*순서|조리법|요리\s*순서|순서|과정|레시피|\n\s*\n)/;
+  const em = endRe.exec(rest);
+  if (em) rest = rest.slice(0, em.index);
+  // Steps usually begin at the first emoji (e.g. 🧑‍🍳) — cut there.
+  const emoji = rest.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}]/u);
+  if (emoji) rest = rest.slice(0, rest.indexOf(emoji[0]));
+  rest = rest.slice(0, 400);
+  rest = rest.replace(/^\s*\([^)]*\)/, ""); // drop a leading "(2인분)" / "(틀 1개 분량)"
+  rest = rest.replace(/(주재료|부재료|메인\s*재료|선택\s*재료|양념\s*재료|소스\s*재료)\s*[:：]?/g, ","); // sub-labels -> separator
+  rest = rest.replace(/^[\s:：)]+/, "");
+  const qtyEnd = new RegExp("(.*?)\\s*(" + QTY_SRC + ")\\s*$");
+  const out = [];
+  const seen = new Set();
+  for (let it of rest.split(/[,\n·•、，]|\s{2,}/)) {
+    it = it.replace(/^[^가-힣A-Za-z0-9]+/, "").replace(/[)\]:：]+$/, "").trim();
+    if (!it || it.length > 20) continue;
+    if (/^(재료|준비물|만드는|조리|레시피)/.test(it)) continue;
+    let name = it, amount = "";
+    const mm = it.match(qtyEnd);
+    if (mm && mm[1].trim()) { name = mm[1].trim(); amount = mm[2].replace(/\s+/g, ""); }
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    out.push({ name, amount });
+  }
+  return out;
+}
+
+// Build the 필수재료 list: ingredient section + checked pantry + DB names +
+// numeric pairs, de-duplicated. 재료 먼저, 양념 뒤.
 function sheetEssentialItems() {
-  const byName = new Map();
-  const addItem = (name, amount) => {
+  const items = [];
+  const norm = (n) => String(n).replace(/\s+/g, "");
+  const add = (name, amount) => {
     if (!name) return;
-    const cur = byName.get(name);
-    if (!cur) byName.set(name, { name, amount: amount || "" });
-    else if (!cur.amount && amount) cur.amount = amount;
+    const key = norm(name);
+    for (const e of items) {
+      const en = norm(e.name);
+      const overlap = en === key || (en.includes(key) && key.length >= 3) || (key.includes(en) && en.length >= 3);
+      if (overlap) { if (!e.amount && amount) e.amount = amount; return; }
+    }
+    items.push({ name, amount: amount || "" });
   };
+  for (const e of extractIngredientSection(sheetMemo)) add(e.name, e.amount);
   for (const key of sheetChecked) {
     const ci = key.indexOf(":");
-    const type = key.slice(0, ci);
-    const id = key.slice(ci + 1);
-    const it = (state.inventory[type] || []).find((x) => String(x.id) === id);
-    if (it) addItem(it.name, it.amount ? `${it.amount}${it.unit || ""}` : "");
+    const it = (state.inventory[key.slice(0, ci)] || []).find((x) => String(x.id) === key.slice(ci + 1));
+    if (it) add(displayName(it.name), it.amount ? `${it.amount}${it.unit || ""}` : "");
   }
-  for (const e of extractMemoIngredients(sheetMemo)) addItem(e.name, e.amount);
-  for (const e of extractAmountPairs(sheetMemo)) addItem(e.name, e.amount);
-  const all = [...byName.values()];
-  const ordered = [...all.filter((e) => !SEASONING_NAMES.has(e.name)), ...all.filter((e) => SEASONING_NAMES.has(e.name))];
-  return ordered.map((e) => ({ name: displayName(e.name), amount: e.amount }));
+  for (const e of extractMemoIngredients(sheetMemo)) add(displayName(e.name), e.amount);
+  for (const e of extractAmountPairs(sheetMemo)) add(e.name, e.amount);
+  return [...items.filter((e) => !SEASONING_NAMES.has(e.name)), ...items.filter((e) => SEASONING_NAMES.has(e.name))];
 }
 
 // Pull the recipe title from the pasted text — first meaningful line, skipping
@@ -1940,7 +1947,7 @@ function bindEvents() {
     button.addEventListener("click", () => {
       const memoEl = document.querySelector("[data-sheet-memo]");
       if (memoEl) sheetMemo = memoEl.value;
-      sheetTitleText = extractRecipeTitle(sheetMemo) || sheetTitleText;
+      // 제목은 사장님이 직접 입력 — 자동 채우지 않음.
       sheetIngredientsText = sheetEssentialItems()
         .map((e) => (e.amount ? `${e.name} ${e.amount}` : e.name))
         .join(", ");
