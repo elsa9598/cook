@@ -1757,9 +1757,7 @@ function renderBottomNav() {
     <nav class="bottom-nav">
       ${bottomTab("home", "🏠", t("homeSmall"))}
       ${bottomTab("cookbook", "📚", t("bottomCookbook"))}
-      ${bottomTab("cold", "❄️", t("bottomCold"))}
       ${bottomTab("sauce", "🧂", t("bottomSauce"))}
-      ${bottomTab("room", "🍞", t("bottomRoom"))}
     </nav>
   `;
 }
