@@ -141,6 +141,11 @@ const ko = {
   dishPlaceholder: "예: 단호박식빵 (없는 재료도 검색돼요)",
   searchRecipe: "구글에서 요리법 검색",
   recipeMemoLabel: "요리법 (검색해서 복사·붙여넣기)",
+  organizeBtn: "🪄 자동 정리 → 아래 칸 채우기",
+  editIngsLabel: "필수재료 (편집 · 쉼표로 구분)",
+  editStepsLabel: "만드는 방법 (편집 · 한 줄에 한 단계)",
+  editIngsPlaceholder: "예: 강력분 290g, 단호박 130g, 설탕 35g, 소금 6g",
+  editStepsPlaceholder: "한 줄에 한 단계씩 적으면 1·2·3 번호가 자동으로 붙어요.",
   visualPromptLabel: "영어 비주얼 프롬프트 (이미지 생성용)",
   attachImage: "비주얼 사진 첨부",
   savePdf: "A4 PDF로 저장",
@@ -286,6 +291,11 @@ const en = {
   dishPlaceholder: "e.g. pumpkin bread (searches even if you lack it)",
   searchRecipe: "Search recipe on Google",
   recipeMemoLabel: "Recipe (search, copy & paste)",
+  organizeBtn: "🪄 Auto-organize → fill fields below",
+  editIngsLabel: "Ingredients (edit · comma separated)",
+  editStepsLabel: "Steps (edit · one step per line)",
+  editIngsPlaceholder: "e.g. bread flour 290g, pumpkin 130g, sugar 35g, salt 6g",
+  editStepsPlaceholder: "One step per line; 1·2·3 numbers are added automatically.",
   visualPromptLabel: "English visual prompt (for image gen)",
   attachImage: "Attach visual photo",
   savePdf: "Save as A4 PDF",
@@ -718,6 +728,8 @@ let sheetChecked = new Set(); // "type:id"
 let sheetMemo = "";
 let sheetImage = null; // dataUrl
 let sheetDish = ""; // 만들고 싶은 요리/살 재료 — 없는 재료도 검색·제목에 사용
+let sheetIngredientsText = ""; // 편집 가능한 필수재료 (비면 자동 추출 사용)
+let sheetStepsText = ""; // 편집 가능한 만드는 방법, 한 줄=한 단계 (비면 자동 분리 사용)
 
 // Always-present basic seasonings (fixed, can't be deleted). Defined before
 // normalizeState() runs so ensureStaples() can read it. Spices/sauces beyond
@@ -790,17 +802,43 @@ function extractMemoIngredients(memo) {
   return found.filter((f) => !names.some((o) => o !== f.name && o.includes(f.name)));
 }
 
+// Numeric "이름 290g" pairs straight from pasted text — covers ingredients the DB
+// doesn't know (강력분, 무염버터, 이스트 …).
+const NUM_QTY_SRC =
+  "\\d+(?:[.,/]\\d+)?(?:\\s?~\\s?\\d+(?:[.,/]\\d+)?)?\\s?(?:큰술|작은술|티스푼|테이블스푼|스푼|컵|개|쪽|톨|줌|마리|봉지|봉|꼬집|모|단|줄|장|g|kg|ml|mL|L|cc)";
+function extractAmountPairs(memo) {
+  const text = String(memo || "").replace(/\r/g, "\n");
+  if (!text.trim()) return [];
+  const re = new RegExp("([가-힣]{2,10})\\s*(" + NUM_QTY_SRC + ")", "g");
+  const out = [];
+  const seen = new Set();
+  let m;
+  while ((m = re.exec(text))) {
+    const name = m[1].trim();
+    const amount = m[2].replace(/\s+/g, "");
+    if (!name || seen.has(name)) continue;
+    if (/(틀|오븐|그릇|볼|팬|컵|분량)$/.test(name)) continue; // 도구·분량 제외
+    seen.add(name);
+    out.push({ name, amount });
+  }
+  return out;
+}
+
 // Turn a pasted (often run-together) recipe into ordered cooking steps.
 function splitRecipeSteps(memo) {
   let s = String(memo || "").replace(/\r/g, "").trim();
   if (!s) return [];
-  // Jump to the method section when a header is present.
-  const headerRe = /(만드는\s*방법|만드는\s*법|조리\s*방법|조리\s*순서|조리법|레시피|요리법|순서|과정)\s*[:：]?/;
+  // Jump to the method section when a clear header is present (not blog names).
+  const headerRe = /(만드는\s*방법|만드는\s*법|조리\s*방법|조리\s*순서|조리법|요리\s*순서)\s*[:：]?/;
   const h = s.search(headerRe);
   if (h >= 0) s = s.slice(h).replace(headerRe, "").trim();
+  // Prefer sentence-splitting; only trust existing numbering when it's dense
+  // (e.g. "1. … 2. … 3. …") rather than a few stray section numbers.
+  const numMarkers = (s.match(/(?:^|\s)\d{1,2}\s*[.)]\s/g) || []).length;
+  const sentEnders = (s.match(/다\.|요\.|[.!?]\s/g) || []).length;
   let parts;
-  if (/(^|\s)\d+\s*[.)]\s/.test(s) || /[①-⑳]/.test(s)) {
-    parts = s.split(/\s*(?:\d+\s*[.)]|[①-⑳])\s*/); // re-use existing numbering
+  if (/[①-⑳]/.test(s) || (numMarkers >= 2 && numMarkers >= sentEnders)) {
+    parts = s.split(/\s*(?:\d{1,2}\s*[.)](?=\s)|[①-⑳])\s*/); // keep decimals intact
   } else {
     parts = [];
     for (const line of s.split(/\n+/)) {
@@ -808,9 +846,12 @@ function splitRecipeSteps(memo) {
     }
   }
   return parts
-    .map((x) => x.replace(/^[\s·•\-–—]+/, "").trim())
+    .map((x) => x.replace(/^[^가-힣A-Za-z0-9]+/, "").replace(/^\d{1,2}\s*[.)]\s*/, "").trim()) // strip emoji/bullets/inline number
     .filter(Boolean)
-    .filter((x) => !/^(재료|준비물|필수재료|재료\s*준비)\s*[:：]/.test(x));
+    .filter((x) => !/^\d+\s*[.)]?\s*$/.test(x)) // 숫자만 있는 빈 단계 ("2." "4.")
+    .filter((x) => !/^(필수\s*재료|주\s*재료|부\s*재료|선택\s*재료)/.test(x)) // 재료 블록
+    .filter((x) => !/^(재료|준비물)\s*[:：(]/.test(x))
+    .filter((x) => !/^(레시피|만개의|출처|사진\s*출처|블로그)/.test(x)); // 블로그 홍보문구
 }
 
 normalizeState();
@@ -1368,7 +1409,16 @@ function renderCookSheet() {
     <section class="section card">
       <div class="field">
         <label>${t("recipeMemoLabel")}</label>
-        <textarea data-sheet-memo rows="7" placeholder="${t("itemMemoPlaceholder")}">${escapeHtml(sheetMemo)}</textarea>
+        <textarea data-sheet-memo rows="6" placeholder="${t("itemMemoPlaceholder")}">${escapeHtml(sheetMemo)}</textarea>
+      </div>
+      <button class="pill" style="width:100%; margin:4px 0 14px" data-sheet-organize>${t("organizeBtn")}</button>
+      <div class="field">
+        <label>${t("editIngsLabel")}</label>
+        <textarea data-sheet-ings rows="4" placeholder="${escapeAttr(t("editIngsPlaceholder"))}">${escapeHtml(sheetIngredientsText)}</textarea>
+      </div>
+      <div class="field">
+        <label>${t("editStepsLabel")}</label>
+        <textarea data-sheet-steps rows="12" placeholder="${escapeAttr(t("editStepsPlaceholder"))}">${escapeHtml(sheetStepsText)}</textarea>
       </div>
       <div class="field">
         <label>${t("visualPromptLabel")}</label>
@@ -1387,15 +1437,9 @@ function renderCookSheet() {
   `;
 }
 
-function exportSheetPdf() {
-  const mode = sheetMode;
-  const modeKo = (cookModes.find((m) => m[0] === mode) || [])[1] || "요리";
-  const dish = (sheetDish || "").trim();
-  const title = dish ? escapeHtml(dish) : `${modeKo} 요리`;
-  const memo = escapeHtml(sheetMemo || "").replaceAll("\n", "<br>");
-
-  // Merge checked pantry items (with their stocked amount) and ingredients
-  // parsed out of the pasted recipe text — including ones not in the pantry.
+// Merge checked pantry items (with stocked amount) + ingredients parsed from the
+// pasted recipe (including ones not in the pantry). 재료 먼저, 양념 뒤.
+function sheetEssentialItems() {
   const byName = new Map();
   const addItem = (name, amount) => {
     if (!name) return;
@@ -1411,17 +1455,45 @@ function exportSheetPdf() {
     if (it) addItem(it.name, it.amount ? `${it.amount}${it.unit || ""}` : "");
   }
   for (const e of extractMemoIngredients(sheetMemo)) addItem(e.name, e.amount);
-  const allItems = [...byName.values()];
-  const ingList = allItems.filter((e) => !SEASONING_NAMES.has(e.name));
-  const seaList = allItems.filter((e) => SEASONING_NAMES.has(e.name));
-  const essential = [...ingList, ...seaList]; // 재료 먼저, 양념 뒤
+  for (const e of extractAmountPairs(sheetMemo)) addItem(e.name, e.amount);
+  const all = [...byName.values()];
+  const ordered = [...all.filter((e) => !SEASONING_NAMES.has(e.name)), ...all.filter((e) => SEASONING_NAMES.has(e.name))];
+  return ordered.map((e) => ({ name: displayName(e.name), amount: e.amount }));
+}
+
+// Parse an edited "이름 290g, 이름 약간" line into {name, amount} pairs.
+function parseIngredientLine(text) {
+  const qtyEnd = new RegExp("(.*?)\\s*(" + QTY_SRC + ")\\s*$");
+  return String(text)
+    .split(/[,\n]/)
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .map((t) => {
+      const m = t.match(qtyEnd);
+      return m && m[1].trim() ? { name: m[1].trim(), amount: m[2].replace(/\s+/g, "") } : { name: t, amount: "" };
+    });
+}
+
+function exportSheetPdf() {
+  const mode = sheetMode;
+  const modeKo = (cookModes.find((m) => m[0] === mode) || [])[1] || "요리";
+  const dish = (sheetDish || "").trim();
+  const title = dish ? escapeHtml(dish) : `${modeKo} 요리`;
+  const memo = escapeHtml(sheetMemo || "").replaceAll("\n", "<br>");
+
+  // Edited fields win; otherwise fall back to auto extraction/splitting.
+  const essential = sheetIngredientsText.trim()
+    ? parseIngredientLine(sheetIngredientsText)
+    : sheetEssentialItems();
   const essentialInline = essential
     .map(
       (e) =>
-        `<span class="ing">${escapeHtml(displayName(e.name))}${e.amount ? `<span class="amt">${escapeHtml(e.amount)}</span>` : ""}</span>`
+        `<span class="ing">${escapeHtml(e.name)}${e.amount ? `<span class="amt">${escapeHtml(e.amount)}</span>` : ""}</span>`
     )
     .join("");
-  const steps = splitRecipeSteps(sheetMemo);
+  const steps = sheetStepsText.trim()
+    ? sheetStepsText.split(/\n+/).map((x) => x.trim()).filter(Boolean)
+    : splitRecipeSteps(sheetMemo);
   const stepsHtml = steps.length
     ? `<ol class="steps">${steps.map((st) => `<li>${escapeHtml(st)}</li>`).join("")}</ol>`
     : `<div class="memo">${memo || "-"}</div>`;
@@ -1433,7 +1505,7 @@ function exportSheetPdf() {
       @page { size: A4; margin: 12mm; }
       * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       html, body { background: #000; margin: 0; padding: 0; }
-      body { font-family: "Inter", "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; color: #bbbbbb; line-height: 1.4; }
+      body { font-family: "Inter", "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; color: #bbbbbb; line-height: 1.4; overflow-wrap: anywhere; word-break: break-word; }
       h1 { font-size: 26px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px; margin: 0 0 10px; }
       h2 { font-size: 12px; font-weight: 700; color: #ffffff; letter-spacing: 1.2px; margin: 13px 0 7px; padding-bottom: 5px; border-bottom: 1px solid #3c3c3c; }
       .ingline { font-size: 14px; line-height: 1.7; color: #e6e6e6; }
@@ -1817,6 +1889,23 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-sheet-memo]").forEach((ta) => {
     ta.addEventListener("input", () => { sheetMemo = ta.value; });
+  });
+  document.querySelectorAll("[data-sheet-ings]").forEach((ta) => {
+    ta.addEventListener("input", () => { sheetIngredientsText = ta.value; });
+  });
+  document.querySelectorAll("[data-sheet-steps]").forEach((ta) => {
+    ta.addEventListener("input", () => { sheetStepsText = ta.value; });
+  });
+  document.querySelectorAll("[data-sheet-organize]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const memoEl = document.querySelector("[data-sheet-memo]");
+      if (memoEl) sheetMemo = memoEl.value;
+      sheetIngredientsText = sheetEssentialItems()
+        .map((e) => (e.amount ? `${e.name} ${e.amount}` : e.name))
+        .join(", ");
+      sheetStepsText = splitRecipeSteps(sheetMemo).join("\n");
+      render();
+    });
   });
   document.querySelectorAll("[data-sheet-dish]").forEach((inp) => {
     inp.addEventListener("input", () => {
@@ -2425,6 +2514,8 @@ function openCookSheet(mode) {
   sheetMemo = "";
   sheetImage = null;
   sheetDish = "";
+  sheetIngredientsText = "";
+  sheetStepsText = "";
   selectedTab = "cooksheet";
   render();
 }
