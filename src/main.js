@@ -1324,6 +1324,46 @@ function dietTotalKcal(dateStr) {
   return dietItems(dateStr).reduce((s, e) => s + (+e.kcal || 0), 0);
 }
 
+// Pull just the foods out of a diary-like / dictated sentence so the Google
+// analysis gets clean items (e.g. "오늘 아침에 현미밥이랑 계란후라이 먹고 물 마셨어"
+// → 현미밥, 계란후라이, 물).
+const DIET_STOPWORDS = new Set([
+  "오늘", "어제", "내일", "아침", "점심", "저녁", "간식", "야식", "새벽", "낮", "밤", "오전", "오후",
+  "에", "에는", "엔", "에서", "으로", "로", "까지", "부터", "처럼", "정도",
+  "그리고", "그리구", "또", "또는", "및", "그다음", "그담", "그러고", "그리고나서", "이후", "다음",
+  "먹었어", "먹었어요", "먹었다", "먹고", "먹음", "먹을", "먹을거", "먹을게", "먹네", "먹자", "먹어", "먹어요", "먹었네", "먹는다", "챙겨",
+  "마셨어", "마셨어요", "마셨다", "마시고", "마심", "마실", "마셔", "마셔요", "마셨네",
+  "했어", "했다", "했어요", "한잔", "한그릇",
+  "한", "두", "세", "네", "다섯", "여섯", "일곱", "여덟", "개", "공기", "잔", "컵", "그릇", "봉지", "조각", "줄", "장", "스푼", "큰술", "작은술", "인분", "팩", "봉",
+  "좀", "조금", "많이", "약간", "적당히", "진짜", "너무", "아주", "그냥", "막", "한입", "살짝", "더", "다", "모두", "거의",
+  "나", "난", "내가", "나는", "저", "제가", "우리", "그", "이", "저거", "이거", "그거", "뭐", "음", "어",
+  "하나", "둘", "셋", "넷", "반", "한개", "두개", "세개", "약간씩", "그래서", "근데",
+]);
+function parseSpokenFoods(text) {
+  const cleaned = String(text || "")
+    .replace(/[.!?…~"'`()]/g, " ")
+    .replace(/(이랑|랑|하고|그리고나서|그리고|그리구|또)/g, " , ") // 연결어 → 구분자
+    .replace(/[\n,·、，]/g, " , "); // 줄바꿈·쉼표 → 구분자
+  const timeRe = /^(아침|점심|저녁|간식|야식|오늘|어제|내일|새벽|낮|밤|오전|오후)(에|엔|에는|때|쯤)?$/;
+  const out = [];
+  let run = [];
+  const flush = () => {
+    const p = run.join(" ").trim();
+    if (p && /[가-힣A-Za-z]/.test(p)) out.push(p);
+    run = [];
+  };
+  for (let tk of cleaned.split(/\s+/)) {
+    if (tk === ",") { flush(); continue; }
+    // 명백한 종결 조사만 제거 (사과·계란후라이 같은 음식 끝글자는 보존)
+    tk = tk.replace(/(을|를|에서|으로|까지|부터|에게|한테)$/, "").trim();
+    if (!tk) continue;
+    if (DIET_STOPWORDS.has(tk) || /^\d+(\.\d+)?$/.test(tk) || timeRe.test(tk)) { flush(); continue; }
+    run.push(tk);
+  }
+  flush();
+  return [...new Set(out)];
+}
+
 function renderDiet() {
   const today = ymd(new Date());
   const monthNames = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"];
@@ -2340,14 +2380,15 @@ function bindEvents() {
   document.querySelectorAll("[data-diet-add]").forEach((form) => {
     form.addEventListener("submit", (e) => {
       e.preventDefault();
-      const f = new FormData(form);
-      // One item per line — lets the user dump everything at once.
-      const lines = String(f.get("name") || "").split(/\n+/).map((s) => s.trim()).filter(Boolean);
-      if (!lines.length) return;
+      const raw = String(f.get("name") || "");
+      // Extract just the foods from whatever was typed/dictated (diary sentences ok).
+      let foods = parseSpokenFoods(raw);
+      if (!foods.length) foods = raw.split(/\n+/).map((s) => s.trim()).filter(Boolean);
+      if (!foods.length) return;
       dietItems(dietDate); // ensure migrated structure
       state.diet[dietDate] = state.diet[dietDate] || {};
       state.diet[dietDate].items = state.diet[dietDate].items || [];
-      lines.forEach((name, i) =>
+      foods.forEach((name, i) =>
         state.diet[dietDate].items.push({ id: `${Date.now()}-${i}`, name, amount: "", kcal: "" })
       );
       saveState();
