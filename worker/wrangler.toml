@@ -1,0 +1,8 @@
+name = "cook-r2"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+workers_dev = true
+
+[[r2_buckets]]
+binding = "COOK"
+bucket_name = "cook"

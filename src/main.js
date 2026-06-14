@@ -3,6 +3,8 @@ import { DISHES } from "./recipes.js";
 
 const STORAGE_KEY = "yorijambaengi-state-v2";
 const POPUP_KEY = "yorijambaengi-free-popup-date";
+// Cloudflare Worker that stores recipe HTML in the R2 "cook" bucket (by mode folder).
+const CLOUD_BASE = "https://cook-r2.3dleader0128.workers.dev";
 
 const ko = {
   login: "Login",
@@ -92,6 +94,14 @@ const ko = {
   bottomSauce: "양념",
   bottomRoom: "실온",
   bottomCookbook: "요리책",
+  bottomDiet: "식단",
+  dietTitle: "나의 하루 식단표",
+  dietAddName: "음식",
+  dietAddAmount: "분량",
+  dietAdd: "추가",
+  dietTotal: "오늘 합계",
+  dietGood: "오늘 목표 영양을 채웠어요! 👍",
+  dietLackPrefix: "부족한 영양소",
   cookbookTitle: "내 요리책",
   cookbookEmpty: "아직 만든 요리가 없어요. 요리 종류를 골라 PDF를 만들면 여기에 모여요.",
   cookbookHint: "메뉴별로 모은 내 요리 — 누르면 펼쳐보고 PDF로 저장할 수 있어요.",
@@ -256,6 +266,14 @@ const en = {
   bottomSauce: "Seasoning",
   bottomRoom: "Room",
   bottomCookbook: "Cookbook",
+  bottomDiet: "Diet",
+  dietTitle: "My daily diet log",
+  dietAddName: "Food",
+  dietAddAmount: "Amount",
+  dietAdd: "Add",
+  dietTotal: "Today total",
+  dietGood: "You met today's nutrition goals! 👍",
+  dietLackPrefix: "Low on",
   cookbookTitle: "My cookbook",
   cookbookEmpty: "No recipes yet. Pick a dish type and make a PDF — it shows up here.",
   cookbookHint: "Your recipes grouped by menu — tap to open and save as PDF.",
@@ -756,6 +774,12 @@ let sheetChecked = new Set(); // "type:id"
 let sheetMemo = "";
 let sheetImage = null; // dataUrl
 let sheetDish = ""; // 만들고 싶은 요리/살 재료 — 없는 재료도 검색·제목에 사용
+// 식단표(달력) 상태
+function ymd(d) { const z = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`; }
+const DIET_CATS = [["breakfast", "🌅 아침"], ["lunch", "🌞 점심"], ["dinner", "🌙 저녁"], ["snack", "🍪 간식"], ["coffee", "☕ 커피"], ["water", "💧 물"]];
+const DIET_TARGETS = { kcal: 2000, carb: 300, protein: 55, fat: 50, water: 1500 };
+let dietDate = ymd(new Date());
+let dietView = { y: new Date().getFullYear(), m: new Date().getMonth() };
 let sheetTitleText = ""; // 편집 가능한 요리 제목 (비면 dish/모드명 사용)
 let sheetIngredientsText = ""; // 편집 가능한 필수재료 (비면 자동 추출 사용)
 let sheetStepsText = ""; // 편집 가능한 만드는 방법, 한 줄=한 단계 (비면 자동 분리 사용)
@@ -898,6 +922,7 @@ function defaultState() {
     notes: {}, // saved memos by ingredient name — kept even after deleting the item
     savedRecipes: [], // PDFs the user made, grouped by mode in the cookbook
     trashRecipes: [], // soft-deleted recipes, restorable from the cookbook
+    diet: {}, // daily food log keyed by YYYY-MM-DD
   };
 }
 
@@ -972,6 +997,7 @@ function normalizeState() {
   state.notes = state.notes || {};
   state.savedRecipes = Array.isArray(state.savedRecipes) ? state.savedRecipes : [];
   state.trashRecipes = Array.isArray(state.trashRecipes) ? state.trashRecipes : [];
+  state.diet = state.diet && typeof state.diet === "object" ? state.diet : {};
   ["fridge", "freezer", "sauce", "room"].forEach((type) => {
     state.inventory[type] = Array.isArray(state.inventory[type]) ? state.inventory[type] : [];
   });
@@ -1165,6 +1191,7 @@ function getTitles() {
     return { small: t("homeSmall"), big: "요리잼뱅이" };
   }
   if (selectedTab === "cookbook") return { small: t("bottomCookbook"), big: t("cookbookTitle") };
+  if (selectedTab === "diet") return { small: t("bottomDiet"), big: t("dietTitle") };
   if (selectedTab === "cold") {
     return { small: t("pantrySmall"), big: selectedStorage === "freezer" ? t("freezerBig") : t("fridgeBig") };
   }
@@ -1186,6 +1213,7 @@ function renderCurrentPage() {
   if (!canUseFeatures() && selectedTab !== "home") return renderGate();
   if (selectedTab === "home") return renderHome();
   if (selectedTab === "cookbook") return renderCookbook();
+  if (selectedTab === "diet") return renderDiet();
   if (selectedTab === "cold") return renderStoragePage(selectedStorage);
   if (selectedTab === "sauce") return renderSaucePage();
   if (selectedTab === "room") return renderStoragePage("room");
@@ -1233,6 +1261,7 @@ function renderCookbook() {
           <div class="recipe-row" data-open-recipe="${r.id}">
             <span class="recipe-row-emoji">${r.image ? "🖼️" : "📄"}</span>
             <span class="recipe-row-title">${escapeHtml(r.title)}</span>
+            ${r.cloudUrl ? `<a class="recipe-cloud" data-stop href="${r.cloudUrl}" target="_blank" rel="noopener" title="클라우드에서 열기">☁️</a>` : ""}
             <button class="recipe-del" data-del-recipe="${r.id}" title="${t("deleteRecipe")}">🗑</button>
           </div>`
         )
@@ -1266,6 +1295,111 @@ function renderCookbook() {
     : "";
   const body = saved.length ? sections : "";
   return `<p class="cookbook-hint">${t("cookbookHint")}</p>${body}${trashSection}`;
+}
+
+function dietTotals(dateStr) {
+  const d = state.diet[dateStr] || {};
+  let kcal = 0, carb = 0, protein = 0, fat = 0, water = 0;
+  for (const [cat] of DIET_CATS) {
+    for (const e of d[cat] || []) {
+      kcal += +e.kcal || 0; carb += +e.carb || 0; protein += +e.protein || 0; fat += +e.fat || 0;
+      if (cat === "water") water += +e.amount || 0;
+    }
+  }
+  return { kcal, carb, protein, fat, water };
+}
+
+function dietDeficiency(dateStr) {
+  const tot = dietTotals(dateStr);
+  const tgt = DIET_TARGETS;
+  const lack = [];
+  if (tot.kcal < tgt.kcal * 0.8) lack.push(`칼로리 ${Math.round(tgt.kcal - tot.kcal)}kcal`);
+  if (tot.protein < tgt.protein) lack.push(`단백질 ${Math.round(tgt.protein - tot.protein)}g`);
+  if (tot.carb < tgt.carb * 0.7) lack.push(`탄수화물 ${Math.round(tgt.carb - tot.carb)}g`);
+  if (tot.fat < tgt.fat * 0.7) lack.push(`지방 ${Math.round(tgt.fat - tot.fat)}g`);
+  if (tot.water < tgt.water) lack.push(`물 ${Math.round(tgt.water - tot.water)}ml`);
+  return lack;
+}
+
+function renderDiet() {
+  const today = ymd(new Date());
+  const monthNames = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"];
+  const first = new Date(dietView.y, dietView.m, 1);
+  const startDow = first.getDay();
+  const daysInMonth = new Date(dietView.y, dietView.m + 1, 0).getDate();
+  const dow = ["일", "월", "화", "수", "목", "금", "토"];
+  let cells = "";
+  for (let i = 0; i < startDow; i++) cells += `<div class="cal-cell empty"></div>`;
+  for (let day = 1; day <= daysInMonth; day++) {
+    const ds = `${dietView.y}-${String(dietView.m + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const kcal = dietTotals(ds).kcal;
+    const cls = ["cal-cell"];
+    if (ds === today) cls.push("today");
+    if (ds === dietDate) cls.push("sel");
+    cells += `<button class="${cls.join(" ")}" data-diet-day="${ds}">
+      <span class="cal-num">${day}</span>
+      ${kcal ? `<span class="cal-kcal">${Math.round(kcal)}</span>` : ""}
+    </button>`;
+  }
+  const tot = dietTotals(dietDate);
+  const lack = dietDeficiency(dietDate);
+  const d = state.diet[dietDate] || {};
+  const catBlocks = DIET_CATS.map(([cat, label]) => {
+    const isDrink = cat === "water" || cat === "coffee";
+    const items = (d[cat] || [])
+      .map(
+        (e) => `<div class="diet-item">
+          <span class="diet-item-name">${escapeHtml(e.name || label.slice(2))}</span>
+          <span class="diet-item-meta">${e.amount ? escapeHtml(String(e.amount)) + (isDrink ? "ml" : "") : ""}${e.kcal ? ` · ${e.kcal}kcal` : ""}${e.protein ? ` · 단${e.protein}` : ""}${e.carb ? ` · 탄${e.carb}` : ""}${e.fat ? ` · 지${e.fat}` : ""}</span>
+          <button class="diet-del" data-diet-del="${cat}:${e.id}" title="삭제">✕</button>
+        </div>`
+      )
+      .join("");
+    const macroFields = isDrink
+      ? `<input name="kcal" type="number" min="0" placeholder="kcal" />`
+      : `<input name="kcal" type="number" min="0" placeholder="kcal" />
+         <input name="carb" type="number" min="0" placeholder="탄g" />
+         <input name="protein" type="number" min="0" placeholder="단g" />
+         <input name="fat" type="number" min="0" placeholder="지g" />`;
+    return `
+      <div class="diet-cat">
+        <div class="diet-cat-title">${label}</div>
+        ${items || `<p class="diet-empty">기록 없음</p>`}
+        <form class="diet-add" data-diet-add="${cat}">
+          <div class="diet-add-row">
+            <input name="name" placeholder="${isDrink ? label.slice(2) : t("dietAddName")}" ${isDrink ? "" : "required"} />
+            <input name="amount" type="number" min="0" placeholder="${isDrink ? "ml" : t("dietAddAmount")}" />
+          </div>
+          <div class="diet-add-row">
+            ${macroFields}
+            <button type="submit" class="ghost-pill">＋</button>
+          </div>
+        </form>
+      </div>`;
+  }).join("");
+  const [y, m, dd] = dietDate.split("-");
+  return `
+    <section class="section">
+      <div class="cal-head">
+        <button class="cal-nav" data-diet-month="-1">‹</button>
+        <strong>${dietView.y}년 ${monthNames[dietView.m]}</strong>
+        <button class="cal-nav" data-diet-month="1">›</button>
+      </div>
+      <div class="cal-dow">${dow.map((w, i) => `<span class="${i === 0 ? "sun" : i === 6 ? "sat" : ""}">${w}</span>`).join("")}</div>
+      <div class="cal-grid">${cells}</div>
+    </section>
+    <section class="section card">
+      <h2 class="section-title">📋 ${Number(m)}월 ${Number(dd)}일 (${dow[new Date(dietDate).getDay()]})</h2>
+      <div class="diet-total">
+        <strong>${t("dietTotal")}</strong>
+        <span>🔥 ${Math.round(tot.kcal)} / ${DIET_TARGETS.kcal}kcal · 단 ${Math.round(tot.protein)}g · 탄 ${Math.round(tot.carb)}g · 지 ${Math.round(tot.fat)}g · 💧 ${Math.round(tot.water)}/${DIET_TARGETS.water}ml</span>
+      </div>
+      <div class="diet-lack ${lack.length ? "warn" : "ok"}">
+        ${lack.length ? `⚠️ ${t("dietLackPrefix")}: ${lack.join(", ")}` : t("dietGood")}
+      </div>
+      ${catBlocks}
+    </section>
+  `;
 }
 
 function renderStorageShortcut(key, type) {
@@ -1660,11 +1794,48 @@ function exportRecipePdf(rec) {
   w.document.close();
 }
 
-// From the cook sheet: save to cookbook, then open the print dialog.
+// A standalone, viewable HTML page for a recipe (uploaded to R2 / opened in cloud).
+function buildRecipeStandaloneHtml(rec) {
+  return (
+    `<!doctype html><html lang="ko"><head><meta charset="utf-8">` +
+    `<meta name="viewport" content="width=device-width, initial-scale=1">` +
+    `<title>${escapeHtml(rec.title || "요리")}</title>` +
+    `<style>html,body{margin:0;background:#fff}${RECIPE_DOC_CSS}.rdoc{max-width:760px;margin:0 auto}</style></head>` +
+    `<body><div class="rdoc">${recipeBody(rec)}</div></body></html>`
+  );
+}
+
+// Upload a recipe to the R2 "cook" bucket under its mode folder; remember its URL.
+async function uploadRecipeToCloud(rec) {
+  try {
+    const safe = String(rec.title || "recipe").replace(/[^\w가-힣]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40) || "recipe";
+    const key = `${rec.mode}/${safe}-${Date.now()}.html`;
+    const res = await fetch(`${CLOUD_BASE}/?key=${encodeURIComponent(key)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+      body: buildRecipeStandaloneHtml(rec),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data && data.ok) {
+      const r = (state.savedRecipes || []).find((x) => x.id === rec.id);
+      if (r) {
+        r.cloudKey = key;
+        r.cloudUrl = `${CLOUD_BASE}/?key=${encodeURIComponent(key)}`;
+        saveState();
+        render();
+      }
+    }
+  } catch {
+    // Offline or worker unreachable — the recipe is still saved locally.
+  }
+}
+
+// From the cook sheet: save to cookbook, open the print dialog, back up to cloud.
 function exportSheetPdf() {
   const rec = recipeFromSheet();
   saveRecipeRecord(rec);
   exportRecipePdf(rec);
+  uploadRecipeToCloud(rec);
 }
 
 function renderCarousel() {
@@ -1791,6 +1962,7 @@ function renderBottomNav() {
       ${bottomTab("home", "🏠", t("homeSmall"))}
       ${bottomTab("cookbook", "📚", t("bottomCookbook"))}
       ${bottomTab("sauce", "🧂", t("bottomSauce"))}
+      ${bottomTab("diet", "📅", t("bottomDiet"))}
     </nav>
   `;
 }
@@ -2110,7 +2282,57 @@ function bindEvents() {
       e.stopPropagation();
       if (!window.confirm(t("confirmPurge"))) return;
       const id = btn.dataset.purgeRecipe;
+      const rec = (state.trashRecipes || []).find((r) => r.id === id);
+      if (rec && rec.cloudKey) fetch(`${CLOUD_BASE}/?key=${encodeURIComponent(rec.cloudKey)}`, { method: "DELETE" }).catch(() => {});
       state.trashRecipes = (state.trashRecipes || []).filter((r) => r.id !== id);
+      saveState();
+      render();
+    });
+  });
+  document.querySelectorAll("[data-stop]").forEach((el) => {
+    el.addEventListener("click", (e) => e.stopPropagation());
+  });
+  document.querySelectorAll("[data-diet-day]").forEach((el) => {
+    el.addEventListener("click", () => { dietDate = el.dataset.dietDay; render(); });
+  });
+  document.querySelectorAll("[data-diet-month]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const delta = Number(el.dataset.dietMonth);
+      let m = dietView.m + delta, y = dietView.y;
+      if (m < 0) { m = 11; y--; } else if (m > 11) { m = 0; y++; }
+      dietView = { y, m };
+      render();
+    });
+  });
+  document.querySelectorAll("[data-diet-del]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const [cat, id] = btn.dataset.dietDel.split(":");
+      const day = state.diet[dietDate];
+      if (day && Array.isArray(day[cat])) day[cat] = day[cat].filter((e) => String(e.id) !== id);
+      saveState();
+      render();
+    });
+  });
+  document.querySelectorAll("[data-diet-add]").forEach((form) => {
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const cat = form.dataset.dietAdd;
+      const f = new FormData(form);
+      const name = String(f.get("name") || "").trim();
+      const amount = f.get("amount");
+      const entry = {
+        id: `${Date.now()}-${Math.round(Math.random() * 1e4)}`,
+        name,
+        amount: amount ? Number(amount) : "",
+        kcal: f.get("kcal") ? Number(f.get("kcal")) : "",
+        carb: f.get("carb") ? Number(f.get("carb")) : "",
+        protein: f.get("protein") ? Number(f.get("protein")) : "",
+        fat: f.get("fat") ? Number(f.get("fat")) : "",
+      };
+      if (!name && !entry.amount && !entry.kcal) return;
+      state.diet[dietDate] = state.diet[dietDate] || {};
+      state.diet[dietDate][cat] = state.diet[dietDate][cat] || [];
+      state.diet[dietDate][cat].push(entry);
       saveState();
       render();
     });
@@ -2464,6 +2686,7 @@ function exportBackup() {
     inventory: state.inventory,
     savedRecipes: state.savedRecipes || [],
     trashRecipes: state.trashRecipes || [],
+    diet: state.diet || {},
   }, null, 2);
   const blob = new Blob([payload], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -2508,6 +2731,12 @@ async function importBackup(input) {
       data.trashRecipes.forEach((r) => {
         if (r && r.id && !state.trashRecipes.some((x) => x.id === r.id)) state.trashRecipes.push(r);
       });
+    }
+    if (data.diet && typeof data.diet === "object") {
+      state.diet = state.diet || {};
+      for (const [day, meals] of Object.entries(data.diet)) {
+        if (!state.diet[day]) state.diet[day] = meals;
+      }
     }
     saveState();
     render();
