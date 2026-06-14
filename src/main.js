@@ -1991,7 +1991,15 @@ function setupViewerGestures() {
   const pts = new Map();
   let startDist = 0, startScale = 1, startMid = { x: 0, y: 0 }, startTx = 0, startTy = 0;
   let lastTap = 0;
-  const apply = () => { content.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`; };
+  const apply = () => {
+    // Allow free panning (incl. all the way down on tall recipes) but keep the
+    // content from being dragged completely off-screen.
+    const sw = stage.clientWidth, sh = stage.clientHeight;
+    const cw = content.offsetWidth * scale, ch = content.offsetHeight * scale;
+    tx = Math.min(0, Math.max(Math.min(0, sw - cw), tx));
+    ty = Math.min(0, Math.max(Math.min(0, sh - ch), ty));
+    content.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+  };
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
   stage.addEventListener("pointerdown", (e) => {
@@ -2020,13 +2028,15 @@ function setupViewerGestures() {
   });
   const up = (e) => {
     pts.delete(e.pointerId);
-    const r = [...pts.values()][0];
-    if (r) { startTx = tx; startTy = ty; startMid = { x: r.x, y: r.y }; }
+    // Re-baseline against whichever finger remains so panning/pinch stays smooth.
+    const arr = [...pts.values()];
+    startTx = tx; startTy = ty;
+    if (arr.length === 1) startMid = { x: arr[0].x, y: arr[0].y };
+    else if (arr.length >= 2) { startDist = dist(arr[0], arr[1]); startScale = scale; startMid = mid(arr[0], arr[1]); }
     if (pts.size === 0) {
       const now = Date.now();
-      if (now - lastTap < 300) { scale = 1; tx = 0; ty = 0; apply(); } // double-tap reset
+      if (now - lastTap < 300) { scale = 1; tx = 0; ty = 0; apply(); } // double-tap reset only
       lastTap = now;
-      if (scale <= 1) { scale = 1; tx = 0; ty = 0; apply(); }
     }
   };
   stage.addEventListener("pointerup", up);
@@ -3794,8 +3804,19 @@ function requestPersistentStorage() {
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   if (location.hostname === "127.0.0.1" || location.hostname === "localhost") return;
+  // Auto-reload once when a new service worker takes over, so deploys show up
+  // without the user having to clear the cache.
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloaded) return;
+    reloaded = true;
+    location.reload();
+  });
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
+    navigator.serviceWorker.register("./sw.js").then((reg) => {
+      reg.update();
+      setInterval(() => reg.update(), 60 * 1000); // check for new deploy periodically
+    }).catch(() => {});
   });
 }
 

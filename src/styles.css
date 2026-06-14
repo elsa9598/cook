@@ -1302,7 +1302,7 @@ button {
   touch-action: none;
   display: flex;
   align-items: flex-start;
-  justify-content: center;
+  justify-content: flex-start;
 }
 .viewer-content {
   width: min(100%, 760px);

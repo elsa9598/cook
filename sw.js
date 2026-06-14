@@ -1,4 +1,4 @@
-const CACHE_NAME = "yorijambaengi-pwa-v3";
+const CACHE_NAME = "yorijambaengi-pwa-v4";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -38,8 +38,10 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
   if (isFreshFirst(event.request)) {
+    // Bypass the HTTP cache for the shell so the latest index.html (and its
+    // hashed asset references) is always fetched when online.
     event.respondWith(
-      fetch(event.request)
+      fetch(event.request, { cache: "reload" })
         .then((response) => {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
