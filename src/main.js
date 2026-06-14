@@ -107,6 +107,8 @@ const ko = {
   cookbookHint: "메뉴별로 모은 내 요리 — 누르면 펼쳐보고 PDF로 저장할 수 있어요.",
   openRecipe: "펼쳐보기",
   deleteRecipe: "삭제",
+  cloudRestore: "☁️ 클라우드에서 불러오기",
+  cloudRestoreDone: "클라우드 동기화 완료",
   trashTitle: "🗑 최근 삭제 (되돌리기)",
   trashHint: "실수로 지운 요리는 여기서 되돌릴 수 있어요 (최근 30개 보관).",
   restoreRecipe: "되돌리기",
@@ -279,6 +281,8 @@ const en = {
   cookbookHint: "Your recipes grouped by menu — tap to open and save as PDF.",
   openRecipe: "Open",
   deleteRecipe: "Delete",
+  cloudRestore: "☁️ Load from cloud",
+  cloudRestoreDone: "Synced from cloud",
   trashTitle: "🗑 Recently deleted (restore)",
   trashHint: "Accidentally deleted recipes can be restored here (last 30 kept).",
   restoreRecipe: "Restore",
@@ -1248,8 +1252,9 @@ function renderHome() {
 function renderCookbook() {
   const saved = state.savedRecipes || [];
   const trash = state.trashRecipes || [];
+  const cloudBtn = `<button class="ghost-pill" style="width:100%;margin-bottom:10px" data-cloud-restore>${t("cloudRestore")}</button>`;
   if (!saved.length && !trash.length) {
-    return `<section class="section"><div class="card empty">${t("cookbookEmpty")}</div></section>`;
+    return `<section class="section">${cloudBtn}<div class="card empty">${t("cookbookEmpty")}</div></section>`;
   }
   const sections = cookModes
     .map(([key, koName, enName, emoji]) => {
@@ -1294,7 +1299,7 @@ function renderCookbook() {
       </section>`
     : "";
   const body = saved.length ? sections : "";
-  return `<p class="cookbook-hint">${t("cookbookHint")}</p>${body}${trashSection}`;
+  return `<section class="section">${cloudBtn}</section><p class="cookbook-hint">${t("cookbookHint")}</p>${body}${trashSection}`;
 }
 
 function dietTotals(dateStr) {
@@ -2250,7 +2255,52 @@ function bindEvents() {
     });
   });
   document.querySelectorAll("[data-open-recipe]").forEach((el) => {
-    el.addEventListener("click", () => { modal = `recipe:${el.dataset.openRecipe}`; render(); });
+    el.addEventListener("click", () => {
+      const id = el.dataset.openRecipe;
+      const rec = (state.savedRecipes || []).find((r) => r.id === id);
+      // Cloud-only entries (no local body) open the stored page directly.
+      if (rec && rec.fromCloud && !String(rec.stepsText || "").trim() && rec.cloudUrl) {
+        window.open(rec.cloudUrl, "_blank", "noopener");
+        return;
+      }
+      modal = `recipe:${id}`;
+      render();
+    });
+  });
+  document.querySelectorAll("[data-cloud-restore]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      btn.textContent = "…";
+      try {
+        const res = await fetch(`${CLOUD_BASE}/?list=`);
+        const data = await res.json();
+        let added = 0;
+        state.savedRecipes = state.savedRecipes || [];
+        for (const o of data.objects || []) {
+          const key = o.key;
+          if (state.savedRecipes.some((r) => r.cloudKey === key)) continue;
+          const mode = key.split("/")[0];
+          const file = key.split("/").pop() || "";
+          const title = file.replace(/-\d+\.html$/i, "").replace(/\.html$/i, "").replace(/_/g, " ").trim() || "요리";
+          state.savedRecipes.push({
+            id: `cloud-${key}`,
+            mode,
+            title,
+            ingredientsText: "",
+            stepsText: "",
+            image: null,
+            cloudKey: key,
+            cloudUrl: `${CLOUD_BASE}/?key=${encodeURIComponent(key)}`,
+            fromCloud: true,
+            createdAt: o.uploaded || new Date().toISOString(),
+          });
+          added++;
+        }
+        saveState();
+        render();
+      } catch {
+        btn.textContent = t("cloudRestore");
+      }
+    });
   });
   document.querySelectorAll("[data-del-recipe]").forEach((btn) => {
     btn.addEventListener("click", (e) => {
