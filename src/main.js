@@ -2473,6 +2473,7 @@ function bindEvents() {
   document.querySelectorAll("[data-diet-add]").forEach((form) => {
     form.addEventListener("submit", (e) => {
       e.preventDefault();
+      const f = new FormData(form);
       const raw = String(f.get("name") || "");
       // Extract just the foods from whatever was typed/dictated (diary sentences ok).
       let foods = parseSpokenFoods(raw);
