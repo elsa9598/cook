@@ -1299,25 +1299,27 @@ function exportSheetPdf() {
   const modeKo = (cookModes.find((m) => m[0] === mode) || [])[1] || "요리";
   const names = sheetCheckedNames().map(displayName);
   const memo = escapeHtml(sheetMemo || "").replaceAll("\n", "<br>");
-  const prompt = escapeHtml(buildSheetPrompt(mode, sheetCheckedNames()));
   const imgHtml = sheetImage
-    ? `<img src="${sheetImage}" style="max-width:100%; max-height:90mm; object-fit:contain; border:1px solid #ccc;" />`
-    : `<div style="height:80mm; border:1px dashed #aaa; display:flex; align-items:center; justify-content:center; color:#999;">${t("imagePlaceholder")}</div>`;
+    ? `<div class="imgwrap"><img src="${sheetImage}" /></div>`
+    : `<div class="imgwrap"><div class="img-ph">${t("imagePlaceholder")}</div></div>`;
   const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${modeKo} 요리</title>
     <style>
-      @page { size: A4; margin: 16mm; }
-      * { box-sizing: border-box; }
-      body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; color: #111; line-height: 1.5; }
-      h1 { font-size: 24px; margin: 0 0 4px; }
-      h2 { font-size: 15px; margin: 18px 0 6px; border-bottom: 2px solid #111; padding-bottom: 3px; }
+      @page { size: A4; margin: 14mm; }
+      * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      html, body { background: #000; margin: 0; padding: 0; }
+      body { font-family: "Inter", "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; color: #bbbbbb; line-height: 1.5; }
+      h1 { font-size: 30px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px; margin: 0 0 14px; }
+      h2 { font-size: 13px; font-weight: 700; color: #ffffff; letter-spacing: 1.2px; margin: 22px 0 10px; padding-bottom: 7px; border-bottom: 1px solid #3c3c3c; }
       ul { margin: 0; padding-left: 18px; }
-      li { margin: 2px 0; }
-      .memo { white-space: pre-wrap; font-size: 13px; }
-      .prompt { font-size: 11px; color: #555; }
-      .top-line { height: 4px; background: linear-gradient(90deg,#0066b1 33%,#1c69d4 33% 66%,#e22718 66%); margin-bottom: 10px; }
+      li { color: #e6e6e6; font-size: 15px; line-height: 1.6; margin: 3px 0; }
+      .memo { white-space: pre-wrap; font-size: 16px; line-height: 1.75; color: #e6e6e6; }
+      .m-stripe { height: 4px; background: linear-gradient(90deg,#0066b1 0 33%,#1c69d4 33% 66%,#e22718 66% 100%); margin-bottom: 16px; }
+      .imgwrap { text-align: center; margin: 4px 0 0; }
+      .imgwrap img { display: block; width: 100%; margin: 0 auto; border: 1px solid #3c3c3c; }
+      .img-ph { height: 80mm; border: 1px dashed #3c3c3c; display: flex; align-items: center; justify-content: center; color: #7e7e7e; }
     </style></head>
     <body>
-      <div class="top-line"></div>
+      <div class="m-stripe"></div>
       <h1>${modeKo} 요리</h1>
       <h2>재료</h2>
       ${names.length ? `<ul>${names.map((n) => `<li>${escapeHtml(n)}</li>`).join("")}</ul>` : "<p>-</p>"}
@@ -1325,8 +1327,6 @@ function exportSheetPdf() {
       <div class="memo">${memo || "-"}</div>
       <h2>비주얼 이미지</h2>
       ${imgHtml}
-      <h2>영어 프롬프트</h2>
-      <div class="prompt">${prompt}</div>
       <script>window.onload=function(){setTimeout(function(){window.print();},300);};<\/script>
     </body></html>`;
   const w = window.open("", "_blank");
