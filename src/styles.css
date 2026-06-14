@@ -87,7 +87,7 @@ button {
   z-index: 30;
   height: var(--top-auth-h);
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
@@ -100,6 +100,15 @@ button {
   justify-self: start;
   font-size: 20px;
 }
+.auth-title {
+  justify-self: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.auth-right { justify-self: end; min-width: 40px; }
 .bottom-tab.locked { opacity: 0.45; }
 .owner-login-msg { color: var(--m-red); font-size: 13px; min-height: 16px; margin: 4px 0 0; }
 

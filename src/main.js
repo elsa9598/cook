@@ -1191,11 +1191,12 @@ function render() {
 }
 
 function renderTopAuth() {
-  // 로그인/가입 제거 — 언어 토글만 유지.
+  // 좌: 홈 · 중앙: 엘사의 식탁(7탭 로그인) · 우: 로그아웃 — 모든 탭 공통.
   return `
     <header class="top-auth">
       <button class="icon-pill auth-home" data-tab="home" aria-label="home">🏠</button>
-      ${state.owner ? `<button class="icon-pill auth-right" data-action="owner-logout" aria-label="logout">🔓</button>` : ""}
+      <span class="auth-title" data-title-tap>엘사의 식탁</span>
+      ${state.owner ? `<button class="icon-pill auth-right" data-action="owner-logout" aria-label="logout">🔓</button>` : `<span class="auth-right"></span>`}
     </header>
   `;
 }
@@ -1206,14 +1207,14 @@ function renderPagePanel() {
   return `
     <section class="page-panel">
       ${showBackRow ? `<button class="back-button" data-action="back">${t("back")}</button>` : ""}
-      <h1 class="big-title" data-title-tap>${titles.big}</h1>
+      ${titles.big ? `<h1 class="big-title">${titles.big}</h1>` : ""}
     </section>
   `;
 }
 
 function getTitles() {
   if (selectedTab === "home") {
-    return { small: t("homeSmall"), big: "엘사의 식탁" };
+    return { small: t("homeSmall"), big: "" }; // 브랜드는 상단 헤더 중앙에 표시
   }
   if (selectedTab === "cookbook") return { small: t("bottomCookbook"), big: t("cookbookTitle") };
   if (selectedTab === "diet") return { small: t("bottomDiet"), big: t("dietTitle") };
