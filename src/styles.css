@@ -130,6 +130,57 @@ button {
 }
 .auth-right { justify-self: end; min-width: 40px; }
 .bottom-tab.locked { opacity: 0.45; }
+
+/* BMW-motorsport motif filling the space under the home grid */
+.home-bmw {
+  margin: 22px 0 8px;
+  padding: 26px 18px 30px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.025) 0 6px, transparent 6px 12px),
+    var(--green-house);
+  border: 1px solid var(--hairline);
+}
+.bmw-stripe {
+  width: 72%;
+  height: 5px;
+  margin: 0 auto;
+  background: linear-gradient(90deg, #0066b1 0 33%, #1c69d4 33% 66%, #e22718 66% 100%);
+}
+.bmw-mark {
+  margin: 14px 0 4px;
+  font-size: 92px;
+  line-height: 1;
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: -4px;
+  background: linear-gradient(90deg, #0066b1, #1c69d4, #e22718);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: elsaFlow 5s linear infinite;
+}
+.bmw-tag {
+  margin: 6px 0 0;
+  color: var(--ink);
+  font-weight: 800;
+  font-style: italic;
+  font-size: 22px;
+  line-height: 1.12;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.bmw-sub {
+  margin: 10px 0 16px;
+  color: var(--soft);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
 .owner-login-msg { color: var(--m-red); font-size: 13px; min-height: 16px; margin: 4px 0 0; }
 
 .auth-left {
@@ -242,7 +293,7 @@ button {
 .big-title {
   margin: 0;
   color: var(--green-brand);
-  font-size: clamp(21px, 6.2vw, 27px);
+  font-size: 16.2px; /* 요리 종류 고르기와 동일(18px의 90%) — 4개 탭 공통, 가운데 정렬 */
   line-height: 1.18;
   font-weight: 700;
   letter-spacing: -0.03em;
@@ -1579,7 +1630,7 @@ button {
   }
 
   .big-title {
-    font-size: 32px;
+    font-size: 16.2px;
     line-height: 1.16;
     white-space: normal;
     word-break: keep-all;

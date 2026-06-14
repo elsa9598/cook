@@ -1214,7 +1214,7 @@ function renderPagePanel() {
 
 function getTitles() {
   if (selectedTab === "home") {
-    return { small: t("homeSmall"), big: "" }; // 브랜드는 상단 헤더 중앙에 표시
+    return { small: t("homeSmall"), big: t("pickType") }; // 요리 종류 고르기 (가운데 페이지 타이틀)
   }
   if (selectedTab === "cookbook") return { small: t("bottomCookbook"), big: t("cookbookTitle") };
   if (selectedTab === "diet") return { small: t("bottomDiet"), big: t("dietTitle") };
@@ -1252,9 +1252,6 @@ function renderCurrentPage() {
 function renderHome() {
   return `
     <section class="section">
-      <div class="section-head">
-        <h2 class="section-title">${t("pickType")}</h2>
-      </div>
       <div class="cook-grid">
         ${cookModes
           .map(
@@ -1267,6 +1264,13 @@ function renderHome() {
           )
           .join("")}
       </div>
+    </section>
+    <section class="home-bmw">
+      <div class="bmw-stripe"></div>
+      <div class="bmw-mark">M</div>
+      <p class="bmw-tag">THE ULTIMATE<br/>COOKING MACHINE</p>
+      <p class="bmw-sub">ELSA'S TABLE · MOTORSPORT KITCHEN</p>
+      <div class="bmw-stripe"></div>
     </section>
   `;
 }
