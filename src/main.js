@@ -280,16 +280,16 @@ const storageTypes = {
 };
 
 const cookModes = [
-  ["fridgeClean", "냉장고 털기", "Clear-out meal", "🥘"],
-  ["snack", "간식", "Snack", "🍙"],
-  ["dessert", "디저트", "Dessert", "🍮"],
-  ["bread", "빵만들기", "Bread", "🥖"],
-  ["party", "파티", "Party", "🎉"],
-  ["korean", "한식", "Korean", "🍚"],
-  ["japanese", "일식", "Japanese", "🍱"],
-  ["chinese", "중식", "Chinese", "🥡"],
-  ["meat", "고기굽기", "Grill meat", "🥩"],
-  ["quick", "초간단 한끼", "Quick meal", "⚡"],
+  ["wellbeing", "웰빙식", "Wellbeing", "🥗", "건강식 찾기", "Healthy meals"],
+  ["diet", "다이어트", "Diet", "⚖️", "칼로리 관리", "Calorie care"],
+  ["microwave", "전자레인지", "Microwave", "⚡", "가장 빠른 요리", "Fastest cooking"],
+  ["protein", "고단백", "High protein", "💪", "운동·근육·포만감", "Protein-packed"],
+  ["fridgeClean", "냉장고 털기", "Clear-out", "🧊", "남은 재료 활용", "Use leftovers"],
+  ["korean", "한식", "Korean", "🍚", "익숙한 집밥", "Home-style"],
+  ["chinese", "중식", "Chinese", "🍜", "볶음·덮밥류", "Stir-fry & bowls"],
+  ["japanese", "일식", "Japanese", "🍱", "덮밥·우동류", "Donburi & udon"],
+  ["bread", "빵만들기", "Bread", "🍞", "홈베이킹", "Home baking"],
+  ["quick", "초간단", "Quick", "⚡", "빠르게 한 끼", "Quick meal"],
 ];
 
 const seasoningCategories = {
@@ -574,6 +574,10 @@ const categoryTranslations = {
 };
 
 const recipeProfiles = {
+  wellbeing: { koTitle: "웰빙 요리", enTitle: "healthy dish", searchTerms: ["salad", "healthy", "vegetable", "bowl"], allow: [], required: [] },
+  diet: { koTitle: "다이어트 요리", enTitle: "light diet dish", searchTerms: ["salad", "light", "chicken salad", "soup"], allow: [], required: [] },
+  microwave: { koTitle: "전자레인지 요리", enTitle: "microwave dish", searchTerms: ["easy", "quick", "microwave"], allow: [], required: [] },
+  protein: { koTitle: "고단백 요리", enTitle: "high-protein dish", searchTerms: ["chicken", "beef", "egg", "protein"], allow: [], required: [] },
   fridgeClean: {
     koTitle: "냉장고 털이 볶음",
     enTitle: "fridge clean-out stir-fry",
@@ -1041,10 +1045,11 @@ function renderHome() {
       <div class="cook-grid">
         ${cookModes
           .map(
-            ([key, koName, enName, emoji]) => `
+            ([key, koName, enName, emoji, descKo, descEn]) => `
               <button class="cook-card" data-cook="${key}">
                 <span class="cook-emoji">${emoji}</span>
                 <strong>${state.lang === "ko" ? koName : enName}</strong>
+                <span>${state.lang === "ko" ? descKo : descEn}</span>
               </button>
             `
           )
@@ -1218,16 +1223,16 @@ function renderSaucePage() {
 
 function renderCarousel() {
   const mode = recipeMode;
-  const isClear = mode === "fridgeClean";
-  const list = isClear ? clearoutOptions : (DISHES[mode] || []);
+  const isThemed = !!MODE_THEMES[mode];
+  const list = isThemed ? clearoutOptions : (DISHES[mode] || []);
   if (!list.length) {
-    return `<section class="section"><div class="card empty">${isClear ? t("clearEmpty") : t("empty")}</div></section>`;
+    return `<section class="section"><div class="card empty">${isThemed ? t("clearEmpty") : t("empty")}</div></section>`;
   }
   const n = list.length;
   const idx = ((carouselIndex % n) + n) % n;
   const dish = list[idx];
   const name = state.lang === "ko" ? dish.ko : dish.en;
-  const ingNames = isClear ? dish.mains : dish.ing.map((i) => i[0]);
+  const ingNames = isThemed ? dish.mains : dish.ing.map((i) => i[0]);
   const emoji = emojiFor(ingNames[0] || name, "fridge");
   const previewIng = ingNames.map(displayName).join(", ");
   return `
@@ -1575,14 +1580,14 @@ function bindEvents() {
   document.querySelectorAll("[data-carousel-select]").forEach((button) => {
     button.addEventListener("click", () => {
       const idx = Number(button.dataset.carouselSelect) || 0;
-      if (recipeMode === "fridgeClean") selectClearout(idx);
+      if (MODE_THEMES[recipeMode]) selectClearout(idx);
       else selectDish(recipeMode, idx);
     });
   });
   document.querySelectorAll("[data-input='servings-carousel']").forEach((input) => {
     input.addEventListener("change", () => {
       servings = Math.max(1, Number(input.value) || 1);
-      if (recipeMode === "fridgeClean") clearoutOptions = buildClearoutOptions(servings);
+      if (MODE_THEMES[recipeMode]) clearoutOptions = buildThemedOptions(servings, MODE_THEMES[recipeMode]);
       render();
     });
   });
@@ -2004,8 +2009,28 @@ const CLEAROUT_STYLES = [
   { koName: "구이", enName: "pan-grill",
     ko: ["{mains}에 소금·후추로 밑간해요.", "기름 두른 팬에 노릇하게 구워요.", "속까지 천천히 익혀요.", "{season}을 곁들여 담아요."],
     en: ["Season {mains} with salt and pepper.", "Pan-grill golden in oil.", "Cook through gently.", "Serve with {season}."] },
+  { koName: "샐러드", enName: "salad",
+    ko: ["{mains}를 먹기 좋게 썰어요.", "찬물에 헹궈 물기를 빼요.", "올리브유·소금·후추(또는 드레싱)로 가볍게 버무려요.", "그릇에 담아 시원하게 먹어요."],
+    en: ["Cut {mains} into bite sizes.", "Rinse in cold water and drain.", "Toss lightly with olive oil, salt and pepper (or dressing).", "Serve chilled."] },
+  { koName: "찜", enName: "steamed",
+    ko: ["{mains}를 한입 크기로 썰어요.", "내열 그릇에 담고 {season}을 넣어요.", "뚜껑을 덮고 약불이나 찜기에 푹 익혀요.", "부드러워지면 담아요."],
+    en: ["Cut {mains} into bite sizes.", "Place in a heatproof dish with {season}.", "Cover and steam gently until tender.", "Serve when soft."] },
+  { koName: "전자레인지", enName: "microwave",
+    ko: ["{mains}를 한입 크기로 썰어 내열 그릇에 담아요.", "{season}을 살짝 뿌리고 물 1스푼을 넣어요.", "랩을 덮어 전자레인지에 3~5분 돌려요.", "고루 섞어 따뜻할 때 담아요."],
+    en: ["Cut {mains} small into a microwave-safe bowl.", "Add {season} and a spoon of water.", "Cover and microwave 3-5 min.", "Stir and serve warm."] },
 ];
 let clearoutCursor = 0;
+
+// Ingredient categories per themed mode, and which styles fit.
+const HEALTHY_CATS = ["잎채소", "채소", "버섯", "과일", "콩/두부", "해산물", "달걀", "유제품", "냉동채소", "냉동해산물", "냉동과일", "구황작물"];
+const PROTEIN_CATS = ["육류", "해산물", "달걀", "콩/두부", "유제품", "냉동육류", "냉동해산물"];
+const MODE_THEMES = {
+  fridgeClean: { cats: null, styles: null },
+  wellbeing: { cats: HEALTHY_CATS, styles: ["샐러드", "무침", "구이", "찜", "국", "볶음"] },
+  diet: { cats: HEALTHY_CATS, styles: ["샐러드", "무침", "국", "찜", "구이"] },
+  microwave: { cats: null, styles: ["전자레인지", "덮밥", "찜", "볶음"] },
+  protein: { cats: PROTEIN_CATS, styles: ["구이", "볶음", "조림", "덮밥", "찜"] },
+};
 
 // Lower = use sooner in clear-out (spoils faster).
 const CLEAROUT_PRIORITY = {
@@ -2102,21 +2127,28 @@ function allInventoryNames() {
 function openCarousel(mode) {
   recipeMode = mode;
   carouselIndex = 0;
-  clearoutOptions = mode === "fridgeClean" ? buildClearoutOptions(servings) : [];
+  clearoutOptions = MODE_THEMES[mode] ? buildThemedOptions(servings, MODE_THEMES[mode]) : [];
   selectedTab = "carousel";
   render();
 }
 
-// 냉장고 털기: up to 10 dishes from the user's actual fridge/freezer items.
 function buildClearoutOptions(count) {
-  // Skip finished side dishes (김치/반찬) and processed frozen meals/desserts —
-  // they aren't raw cooking ingredients. Raw frozen veg/meat/seafood are kept.
+  return buildThemedOptions(count, MODE_THEMES.fridgeClean);
+}
+
+// Build dish options from the user's actual ingredients, themed per mode
+// (category filter + suitable cooking styles).
+function buildThemedOptions(count, theme) {
   const skip = (e) => { const c = e.category || ""; return c.includes("김치") || c.includes("반찬") || CLEAROUT_SKIP.includes(c); };
   const fridgeFreezer = [...state.inventory.fridge, ...state.inventory.freezer].filter((x) => Number(x.amount) > 0 && !skip(x));
-  // Room-temp cooking ingredients (면·통조림·곡물·구황작물 등) join the pool for variety.
   const roomCook = state.inventory.room.filter((x) => Number(x.amount) > 0 && ROOM_COOKABLE.includes(x.category));
-  const usable = [...fridgeFreezer, ...roomCook].slice().sort((a, b) => clearoutPriority(a) - clearoutPriority(b));
+  let usable = [...fridgeFreezer, ...roomCook];
+  if (theme.cats) usable = usable.filter((x) => theme.cats.includes(x.category));
+  usable = usable.slice().sort((a, b) => clearoutPriority(a) - clearoutPriority(b));
   if (!usable.length) return [];
+
+  const styles = theme.styles ? CLEAROUT_STYLES.filter((s) => theme.styles.includes(s.koName)) : CLEAROUT_STYLES;
+  if (!styles.length) return [];
 
   const sauces = state.inventory.sauce.filter((x) => Number(x.amount) > 0);
   const seasonNames = [];
@@ -2127,9 +2159,8 @@ function buildClearoutOptions(count) {
   sauces.forEach((x) => { if (seasonNames.length < 3 && !seasonNames.includes(x.name)) seasonNames.push(x.name); });
 
   const opts = [];
-  // Varied combos: different ingredient subsets (size 1~3, rotating offset) per
-  // style so dishes aren't all "everything stir-fried".
-  CLEAROUT_STYLES.forEach((style, i) => {
+  // Varied combos: different ingredient subsets (size 1~3, rotating offset) per style.
+  styles.forEach((style, i) => {
     const size = (i % 3) + 1;
     const start = (i * 2) % usable.length;
     const subset = [];
@@ -2139,8 +2170,7 @@ function buildClearoutOptions(count) {
     }
     opts.push(makeClearoutOption(subset, seasonNames, style, count));
   });
-  // A few single-ingredient dishes for the most-urgent items.
-  usable.slice(0, 4).forEach((it, i) => opts.push(makeClearoutOption([it], seasonNames, CLEAROUT_STYLES[(i + 3) % CLEAROUT_STYLES.length], count)));
+  usable.slice(0, 4).forEach((it, i) => opts.push(makeClearoutOption([it], seasonNames, styles[(i + 1) % styles.length], count)));
 
   const seen = new Set();
   const out = [];
@@ -2224,7 +2254,7 @@ async function selectDish(mode, index) {
 async function selectClearout(index) {
   const opt = clearoutOptions[index];
   if (!opt) return;
-  const profile = recipeProfiles.fridgeClean;
+  const profile = recipeProfiles[recipeMode] || recipeProfiles.fridgeClean;
   const displayMain = opt.mains.map(displayName);
   const englishMain = opt.mains.map((n) => ingredientTranslations[n] || EN_NAME[n] || n);
   await assembleRecipe(profile, opt.ko, opt.en, opt.en, opt.measured, displayMain, englishMain, opt.shopping, opt.steps);
