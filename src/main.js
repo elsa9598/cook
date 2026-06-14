@@ -1520,8 +1520,16 @@ function exportSheetPdf() {
     ? `<ol class="steps">${steps.map((st) => `<li>${escapeHtml(st)}</li>`).join("")}</ol>`
     : `<div class="memo">${memo || "-"}</div>`;
   const imgHtml = sheetImage
-    ? `<div class="frame"><img src="${sheetImage}" /></div>`
+    ? `<div class="frame"><div class="frame-mat"><img src="${sheetImage}" /></div></div>`
     : `<div class="img-ph">${t("imagePlaceholder")}</div>`;
+  // Bottom-left/right utensil & yummy emojis, each randomly rotated for a playful look.
+  const rot = () => Math.round(Math.random() * 80 - 40);
+  const sz = () => (Math.random() * 0.5 + 0.95).toFixed(2);
+  const cluster = (arr) =>
+    arr.map((e) => `<span style="transform:rotate(${rot()}deg);font-size:${sz()}em">${e}</span>`).join("");
+  const decoHtml = sheetImage
+    ? `<div class="deco"><div>${cluster(["🍴", "🥄", "😋"])}</div><div>${cluster(["🔪", "🥢", "🤤"])}</div></div>`
+    : "";
   const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${modeKo} 요리</title>
     <style>
       @page { size: A4; margin: 12mm; }
@@ -1539,9 +1547,12 @@ function exportSheetPdf() {
       ol.steps li { counter-increment: step; position: relative; padding-left: 30px; margin: 0 0 6px; font-size: 14px; line-height: 1.5; color: #222222; }
       ol.steps li::before { content: counter(step); position: absolute; left: 0; top: 1px; width: 21px; height: 21px; background: #1c69d4; color: #fff; font-weight: 700; font-size: 12px; text-align: center; line-height: 21px; }
       .m-stripe { height: 4px; background: linear-gradient(90deg,#0066b1 0 33%,#1c69d4 33% 66%,#e22718 66% 100%); margin-bottom: 12px; }
-      .frame { width: 70%; margin: 6px auto 0; padding: 12px; background: linear-gradient(135deg,#a9763f 0%,#7a4f25 45%,#5c3a18 100%); border: 1px solid #3e2710; border-radius: 3px; box-shadow: inset 0 0 0 2px rgba(255,255,255,.12); }
-      .frame img { display: block; width: 100%; border: 5px solid #f4ecd8; }
-      .img-ph { width: 70%; height: 60mm; margin: 6px auto 0; border: 1px dashed #bbbbbb; display: flex; align-items: center; justify-content: center; color: #999999; }
+      .frame { width: 70%; margin: 14px auto 0; padding: 7px; background: linear-gradient(90deg,#0066b1 0 33%,#1c69d4 33% 66%,#e22718 66% 100%); }
+      .frame-mat { background: #ffffff; padding: 14px; }
+      .frame img { display: block; width: 100%; }
+      .img-ph { width: 70%; height: 60mm; margin: 14px auto 0; border: 1px dashed #bbbbbb; display: flex; align-items: center; justify-content: center; color: #999999; }
+      .deco { width: 70%; margin: 8px auto 0; display: flex; justify-content: space-between; align-items: center; font-size: 24px; }
+      .deco span { display: inline-block; margin: 0 3px; }
     </style></head>
     <body>
       <div class="m-stripe"></div>
@@ -1550,8 +1561,8 @@ function exportSheetPdf() {
       ${essential.length ? `<div class="ingline">${essentialInline}</div>` : "<p>-</p>"}
       <h2>만드는 방법</h2>
       ${stepsHtml}
-      <h2>비주얼 이미지</h2>
       ${imgHtml}
+      ${decoHtml}
       <script>window.onload=function(){setTimeout(function(){window.print();},300);};<\/script>
     </body></html>`;
   const w = window.open("", "_blank");
