@@ -1568,18 +1568,7 @@ function renderGate() {
 }
 
 function renderFab() {
-  return selectedTab === "home" ? `
-    <button class="fab chef-fab" data-action="make-recipe" title="${t("fabTitle")}" aria-label="${t("smartChef")}">
-      <svg class="chef-icon" viewBox="0 0 64 64" aria-hidden="true">
-        <path class="chef-hat" d="M20 28c-5.2-.6-8-3.7-8-8.1 0-4.6 3.7-8.1 8.1-8.1 1.7-5 6.3-8.2 11.9-8.2s10.2 3.2 11.9 8.2c4.4 0 8.1 3.5 8.1 8.1 0 4.4-2.8 7.5-8 8.1v8H20v-8Z"/>
-        <path class="chef-face" d="M21 34h22v9.5c0 6.1-4.8 10.5-11 10.5s-11-4.4-11-10.5V34Z"/>
-        <path class="chef-apron" d="M24 52h16l5 8H19l5-8Z"/>
-        <path class="chef-smile" d="M25 43c2.1 2.1 4.3 3.1 7 3.1s4.9-1 7-3.1"/>
-        <circle class="chef-dot" cx="26" cy="39" r="1.7"/>
-        <circle class="chef-dot" cx="38" cy="39" r="1.7"/>
-      </svg>
-    </button>
-  ` : "";
+  return ""; // 우측 원형 요리사 버튼 제거 — 홈 메뉴 카드로 요리 시작
 }
 
 function renderBottomNav() {
