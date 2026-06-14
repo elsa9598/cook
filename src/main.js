@@ -820,15 +820,18 @@ function trimHugePhotos() {
 // they don't crowd out memos the user pastes from web search.
 function clearAutoMemos() {
   try {
-    if (localStorage.getItem("yorijambaengi-automemo-v1")) return;
-    const markers = ["무료 검색 키워드", "Free search keyword", "무료 검색에서", "Use free search", "조금씩 테스트하며", "Try a small amount"];
+    if (localStorage.getItem("yorijambaengi-automemo-v2")) return;
+    const markers = ["무료 검색 키워드", "Free search keyword", "무료 검색에서", "Use free search", "조금씩 테스트하며", "Try a small amount", "사진과 이름 기준으로", "Saved from photo and name"];
+    const isAuto = (memo, name) => markers.some((m) => memo.includes(m)) || memo === describeSeasoning(name);
     ["fridge", "freezer", "sauce", "room"].forEach((type) => {
       (state.inventory[type] || []).forEach((e) => {
-        if (!e || !e.memo) return;
-        if (markers.some((m) => e.memo.includes(m)) || e.memo === describeSeasoning(e.name)) e.memo = "";
+        if (e && e.memo && isAuto(e.memo, e.name)) e.memo = "";
       });
     });
-    localStorage.setItem("yorijambaengi-automemo-v1", "1");
+    if (state.notes) {
+      Object.keys(state.notes).forEach((k) => { if (isAuto(state.notes[k] || "", k)) delete state.notes[k]; });
+    }
+    localStorage.setItem("yorijambaengi-automemo-v2", "1");
   } catch {
     // best-effort cleanup
   }
@@ -2360,14 +2363,12 @@ function buildSavedItemInfo(name, type, fallbackMemo = "") {
   if (info) {
     return {
       category: activeLang() === "ko" ? info.category : categoryTranslations[info.category] || info.category,
-      memo: fallbackMemo || formatAutoMemo(key, info),
+      memo: fallbackMemo || "", // no auto boilerplate — user fills via web search
     };
   }
   return {
     category: type === "freezer" ? displayCategory("냉동재료") : t("defaultCategory"),
-    memo: fallbackMemo || (activeLang() === "ko"
-      ? `사진과 이름 기준으로 저장했어요. 맛과 활용법은 무료 검색에서 "${name} 요리 활용법 맛 보관법"으로 확인해 보세요.`
-      : `Saved from photo and name. Use free search for "${name} cooking uses taste storage tips" to improve the note.`),
+    memo: fallbackMemo || "",
   };
 }
 
