@@ -1372,13 +1372,9 @@ function renderDiet() {
       <h2 class="section-title">📋 ${Number(m)}월 ${Number(dd)}일 (${dow[new Date(dietDate).getDay()]}) 먹은 것</h2>
       <div class="diet-list">${list}</div>
       <form class="diet-add" data-diet-add>
-        <div class="diet-add-row">
-          <input name="name" placeholder="${t("dietAddName")} (예: 현미밥 1공기 / 물 500ml / 아메리카노)" required />
-          <input name="kcal" type="number" min="0" placeholder="kcal" />
-          <button type="submit" class="ghost-pill">＋</button>
-        </div>
+        <textarea name="name" class="diet-name-input" rows="3" placeholder="오늘 먹은 것을 한 줄에 하나씩 적어요&#10;예) 현미밥 1공기&#10;물 500ml&#10;아메리카노" required></textarea>
+        <button type="submit" class="pill" style="width:100%">＋ ${t("dietAdd")}</button>
       </form>
-      ${totalK ? `<div class="diet-total"><strong>${t("dietTotal")}</strong><span>🔥 ${Math.round(totalK)}kcal (입력값 합계)</span></div>` : ""}
       <button class="pill" style="width:100%;margin-top:10px" data-diet-search ${items.length ? "" : "disabled"}>🔎 ${t("dietAnalyze")}</button>
       <p class="cookbook-hint" style="margin-top:6px">${t("dietAnalyzeHint")}</p>
     </section>
@@ -2345,18 +2341,15 @@ function bindEvents() {
     form.addEventListener("submit", (e) => {
       e.preventDefault();
       const f = new FormData(form);
-      const name = String(f.get("name") || "").trim();
-      if (!name) return;
-      const entry = {
-        id: `${Date.now()}-${Math.round(Math.random() * 1e4)}`,
-        name,
-        amount: "",
-        kcal: f.get("kcal") ? Number(f.get("kcal")) : "",
-      };
+      // One item per line — lets the user dump everything at once.
+      const lines = String(f.get("name") || "").split(/\n+/).map((s) => s.trim()).filter(Boolean);
+      if (!lines.length) return;
       dietItems(dietDate); // ensure migrated structure
       state.diet[dietDate] = state.diet[dietDate] || {};
       state.diet[dietDate].items = state.diet[dietDate].items || [];
-      state.diet[dietDate].items.push(entry);
+      lines.forEach((name, i) =>
+        state.diet[dietDate].items.push({ id: `${Date.now()}-${i}`, name, amount: "", kcal: "" })
+      );
       saveState();
       render();
     });
