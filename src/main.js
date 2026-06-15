@@ -130,6 +130,7 @@ const ko = {
   saveJpg: "PDF→JPG 저장",
   saveJpgPreparing: "JPG 저장 중…",
   saveJpgDone: "JPG 저장 완료",
+  downloadJpg: "다운로드(JPG)",
   cloudRestore: "☁️ 클라우드에서 불러오기",
   cloudRestoreDone: "클라우드 동기화 완료",
   trashTitle: "🗑 최근 삭제 (되돌리기)",
@@ -328,6 +329,7 @@ const en = {
   saveJpg: "Save PDF as JPG",
   saveJpgPreparing: "Saving JPG…",
   saveJpgDone: "JPG saved",
+  downloadJpg: "Download JPG",
   cloudRestore: "☁️ Load from cloud",
   cloudRestoreDone: "Synced from cloud",
   trashTitle: "🗑 Recently deleted (restore)",
@@ -1320,12 +1322,14 @@ function renderCookbook() {
       const cards = list
         .map(
           (r) => `
-          <div class="recipe-row" data-open-recipe="${r.id}">
-            <span class="recipe-row-emoji">${r.image ? "🖼️" : "📄"}</span>
-            <span class="recipe-row-title">${escapeHtml(r.title)}</span>
-            <button class="ghost-pill recipe-jpg" data-row-jpg="${r.id}">⬇ JPG</button>
-            ${r.cloudUrl ? `<a class="recipe-cloud" data-stop href="${r.cloudUrl}" target="_blank" rel="noopener" title="클라우드에서 열기">☁️</a>` : ""}
-            <button class="recipe-del" data-del-recipe="${r.id}" title="${t("deleteRecipe")}">🗑</button>
+          <div class="recipe-row recipe-card-row" data-open-recipe="${r.id}">
+            <div class="recipe-card-head">
+              <span class="recipe-row-emoji">${r.image ? "🖼️" : "📄"}</span>
+              <span class="recipe-row-title">${escapeHtml(r.title)}</span>
+              ${r.cloudUrl ? `<a class="recipe-cloud" data-stop href="${r.cloudUrl}" target="_blank" rel="noopener" title="클라우드에서 열기">☁️</a>` : ""}
+              <button class="recipe-del" data-del-recipe="${r.id}" title="${t("deleteRecipe")}">🗑</button>
+            </div>
+            <button class="pill recipe-download" data-row-jpg="${r.id}">⬇ ${t("downloadJpg")}</button>
           </div>`
         )
         .join("");

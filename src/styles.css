@@ -1343,13 +1343,23 @@ button {
 }
 .recipe-row-emoji { font-size: 18px; }
 .recipe-row-title { flex: 1; color: var(--ink); font-weight: 600; }
-.recipe-jpg {
-  flex: 0 0 auto;
-  font-size: 12px;
-  padding: 4px 8px;
-  white-space: nowrap;
+.recipe-card-row {
+  display: block;
 }
-.recipe-jpg:disabled {
+.recipe-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.recipe-download {
+  display: block;
+  width: min(100%, 260px);
+  margin: 10px auto 0;
+  padding: 9px 12px;
+  font-size: 14px;
+  text-align: center;
+}
+.recipe-download:disabled {
   opacity: 0.65;
   cursor: wait;
 }
