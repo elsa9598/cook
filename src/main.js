@@ -1326,14 +1326,11 @@ function renderCookbook() {
       const cards = list
         .map(
           (r) => `
-          <div class="recipe-row recipe-card-row" data-open-recipe="${r.id}">
-            <div class="recipe-card-head">
-              <span class="recipe-row-emoji">${r.image ? "🖼️" : "📄"}</span>
-              <span class="recipe-row-title">${escapeHtml(r.title)}</span>
-              ${r.cloudUrl ? `<a class="recipe-cloud" data-stop href="${r.cloudUrl}" target="_blank" rel="noopener" title="클라우드에서 열기">☁️</a>` : ""}
-              <button class="recipe-del" data-del-recipe="${r.id}" title="${t("deleteRecipe")}">🗑</button>
-            </div>
-            <button class="pill recipe-download" data-row-jpg="${r.id}">⬇ ${t("downloadJpg")}</button>
+          <div class="recipe-row" data-open-recipe="${r.id}">
+            <span class="recipe-row-emoji">${r.image ? "🖼️" : "📄"}</span>
+            <span class="recipe-row-title">${escapeHtml(r.title)}</span>
+            ${r.cloudUrl ? `<a class="recipe-cloud" data-stop href="${r.cloudUrl}" target="_blank" rel="noopener" title="클라우드에서 열기">☁️</a>` : ""}
+            <button class="recipe-del" data-del-recipe="${r.id}" title="${t("deleteRecipe")}">🗑</button>
           </div>`
         )
         .join("");
@@ -2408,7 +2405,6 @@ function renderRecipeViewer(id) {
         <div class="viewer-actions">
           <button class="pill viewer-pdf" data-recipe-jpg="${id}">🖼️ ${t("saveJpg")}</button>
           <button class="ghost-pill viewer-share" data-recipe-share="${id}">↗ ${t("shareRecipe")}</button>
-          <button class="ghost-pill viewer-save-jpg" data-recipe-jpg="${id}">⬇ ${t("saveJpg")}</button>
         </div>
       </div>
     </div>
@@ -2853,12 +2849,6 @@ function bindEvents() {
       window.open(`https://www.google.com/search?q=${q}`, "_blank", "noopener,noreferrer");
     });
   });
-  document.querySelectorAll("[data-recipe-jpg]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const rec = (state.savedRecipes || []).find((r) => r.id === btn.dataset.recipeJpg);
-      if (rec) exportRecipeJpg(rec, btn);
-    });
-  });
   document.querySelectorAll("[data-recipe-share]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const rec = (state.savedRecipes || []).find((r) => r.id === btn.dataset.recipeShare);
@@ -2882,27 +2872,6 @@ function bindEvents() {
   document.querySelectorAll("[data-recipe-jpg]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const rec = (state.savedRecipes || []).find((r) => r.id === btn.dataset.recipeJpg);
-      if (!rec) return;
-      const oldText = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = t("saveJpgPreparing");
-      try {
-        await saveRecipeJpg(rec);
-        btn.textContent = t("saveJpgDone");
-      } catch {
-        btn.textContent = oldText;
-      } finally {
-        setTimeout(() => {
-          btn.disabled = false;
-          btn.textContent = oldText;
-        }, 900);
-      }
-    });
-  });
-  document.querySelectorAll("[data-row-jpg]").forEach((btn) => {
-    btn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      const rec = (state.savedRecipes || []).find((r) => r.id === btn.dataset.rowJpg);
       if (!rec) return;
       const oldText = btn.textContent;
       btn.disabled = true;
