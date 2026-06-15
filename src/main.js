@@ -2095,27 +2095,26 @@ async function recipeHtmlToJpegBlob(bodyHtml) {
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
     `<foreignObject width="100%" height="100%">${xhtml}</foreignObject></svg>`;
-  const svgUrl = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
-  try {
-    const img = new Image();
-    await new Promise((resolve, reject) => {
-      img.onload = resolve;
-      img.onerror = reject;
-      img.src = svgUrl;
-    });
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, width, height);
-    ctx.drawImage(img, 0, 0);
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
-    if (!blob) throw new Error("jpg-render-failed");
-    return blob;
-  } finally {
-    URL.revokeObjectURL(svgUrl);
-  }
+  // Data-URL SVG loads more reliably than a blob URL for <foreignObject> on
+  // mobile; a timeout guarantees we never hang on "저장 중".
+  const svgUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  const img = new Image();
+  await new Promise((resolve, reject) => {
+    const to = setTimeout(() => reject(new Error("svg-load-timeout")), 12000);
+    img.onload = () => { clearTimeout(to); resolve(); };
+    img.onerror = () => { clearTimeout(to); reject(new Error("svg-load-error")); };
+    img.src = svgUrl;
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(img, 0, 0);
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+  if (!blob) throw new Error("jpg-render-failed");
+  return blob;
 }
 
 async function recipeToJpegBlob(rec) {
@@ -2880,7 +2879,9 @@ function bindEvents() {
         await saveRecipeJpg(rec);
         btn.textContent = t("saveJpgDone");
       } catch {
+        // JPG 렌더 실패 시 인쇄창으로 폴백(거기서 PDF/이미지 저장)
         btn.textContent = oldText;
+        exportRecipePdf(rec);
       } finally {
         setTimeout(() => {
           btn.disabled = false;
