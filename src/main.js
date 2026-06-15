@@ -120,6 +120,9 @@ const ko = {
   sharePreparing: "공유 준비 중…",
   shareDone: "공유 준비 완료",
   shareFallback: "JPG 파일을 저장했어요. 카톡에서 사진으로 첨부해 보내세요.",
+  saveJpg: "PDF→JPG 저장",
+  saveJpgPreparing: "JPG 저장 중…",
+  saveJpgDone: "JPG 저장 완료",
   cloudRestore: "☁️ 클라우드에서 불러오기",
   cloudRestoreDone: "클라우드 동기화 완료",
   trashTitle: "🗑 최근 삭제 (되돌리기)",
@@ -188,6 +191,7 @@ const ko = {
   visualPromptLabel: "영어 비주얼 프롬프트 (이미지 생성용)",
   attachImage: "비주얼 사진 첨부",
   savePdf: "A4 PDF로 저장",
+  sheetSaved: "요리책에 저장했어요. 요리책의 {mode} 카테고리에서 확인할 수 있어요.",
   sheetEmptyIng: "이 보관함에 재료가 없어요.",
   imagePlaceholder: "여기에 비주얼 사진",
   copyPromptShort: "프롬프트 복사",
@@ -307,6 +311,9 @@ const en = {
   sharePreparing: "Preparing…",
   shareDone: "Ready to share",
   shareFallback: "JPG file saved. Attach it in KakaoTalk.",
+  saveJpg: "Save PDF as JPG",
+  saveJpgPreparing: "Saving JPG…",
+  saveJpgDone: "JPG saved",
   cloudRestore: "☁️ Load from cloud",
   cloudRestoreDone: "Synced from cloud",
   trashTitle: "🗑 Recently deleted (restore)",
@@ -375,6 +382,7 @@ const en = {
   visualPromptLabel: "English visual prompt (for image gen)",
   attachImage: "Attach visual photo",
   savePdf: "Save as A4 PDF",
+  sheetSaved: "Saved to Cookbook. You can find it under {mode}.",
   sheetEmptyIng: "No items in this storage.",
   imagePlaceholder: "Visual photo here",
   copyPromptShort: "Copy prompt",
@@ -1979,6 +1987,11 @@ async function shareRecipe(rec) {
   return true;
 }
 
+async function saveRecipeJpg(rec) {
+  const blob = await recipeToJpegBlob(rec);
+  downloadBlob(blob, recipeShareFileName(rec));
+}
+
 // Upload a recipe to the R2 "cook" bucket under its mode folder; remember its URL.
 async function uploadRecipeToCloud(rec) {
   try {
@@ -2021,11 +2034,13 @@ function uploadDietDay(dateStr) {
   }
 }
 
-// From the cook sheet: save to cookbook, open the print dialog, back up to cloud.
+// From the cook sheet: save to cookbook and back up to cloud. PDF export stays
+// available from the saved recipe viewer, but this button should not open it.
 function exportSheetPdf() {
   const rec = recipeFromSheet();
   saveRecipeRecord(rec);
-  exportRecipePdf(rec);
+  const modeName = (cookModes.find((m) => m[0] === rec.mode) || [])[state.lang === "ko" ? 1 : 2] || rec.mode;
+  alert(t("sheetSaved").replace("{mode}", modeName));
   uploadRecipeToCloud(rec);
 }
 
@@ -2216,6 +2231,7 @@ function renderRecipeViewer(id) {
         <div class="viewer-actions">
           <button class="pill viewer-pdf" data-recipe-pdf="${id}">📄 ${t("savePdf")}</button>
           <button class="ghost-pill viewer-share" data-recipe-share="${id}">↗ ${t("shareRecipe")}</button>
+          <button class="ghost-pill viewer-save-jpg" data-recipe-jpg="${id}">⬇ ${t("saveJpg")}</button>
         </div>
       </div>
     </div>
@@ -2652,6 +2668,26 @@ function bindEvents() {
       try {
         const shared = await shareRecipe(rec);
         btn.textContent = shared ? t("shareDone") : oldText;
+      } catch {
+        btn.textContent = oldText;
+      } finally {
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.textContent = oldText;
+        }, 900);
+      }
+    });
+  });
+  document.querySelectorAll("[data-recipe-jpg]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const rec = (state.savedRecipes || []).find((r) => r.id === btn.dataset.recipeJpg);
+      if (!rec) return;
+      const oldText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = t("saveJpgPreparing");
+      try {
+        await saveRecipeJpg(rec);
+        btn.textContent = t("saveJpgDone");
       } catch {
         btn.textContent = oldText;
       } finally {
