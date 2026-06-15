@@ -200,6 +200,8 @@ const ko = {
   visualPromptLabel: "영어 비주얼 프롬프트 (이미지 생성용)",
   attachImage: "비주얼 사진 첨부",
   savePdf: "A4 PDF로 저장",
+  saveJpg: "A4 JPG로 저장",
+  saving: "저장 중…",
   sheetSaved: "요리책에 저장했어요. 요리책의 {mode} 카테고리에서 확인할 수 있어요.",
   sheetEmptyIng: "이 보관함에 재료가 없어요.",
   imagePlaceholder: "여기에 비주얼 사진",
@@ -399,6 +401,8 @@ const en = {
   visualPromptLabel: "English visual prompt (for image gen)",
   attachImage: "Attach visual photo",
   savePdf: "Save as A4 PDF",
+  saveJpg: "Save as A4 JPG",
+  saving: "Saving…",
   sheetSaved: "Saved to Cookbook. You can find it under {mode}.",
   sheetEmptyIng: "No items in this storage.",
   imagePlaceholder: "Visual photo here",
@@ -1953,6 +1957,61 @@ function exportRecipePdf(rec) {
   w.document.close();
 }
 
+// Render a recipe to an A4 JPG and download it (no external library — uses an
+// SVG <foreignObject> snapshot drawn to a canvas).
+async function exportRecipeJpg(rec, btn) {
+  const label = btn ? btn.textContent : "";
+  if (btn) btn.textContent = t("saving");
+  try {
+    const W = 794; // A4 width @96dpi
+    const SCALE = 2;
+    const holder = document.createElement("div");
+    holder.style.cssText = `position:fixed;left:-99999px;top:0;width:${W}px;background:#fff;`;
+    holder.innerHTML = `<style>${RECIPE_DOC_CSS}</style><div class="rdoc">${recipeBody(rec)}</div>`;
+    document.body.appendChild(holder);
+    await new Promise((r) => setTimeout(r, 50)); // let the (data-URL) image lay out
+    const H = Math.max(1123, holder.scrollHeight + 8); // ≥ A4 height
+    const inner = holder.innerHTML;
+    document.body.removeChild(holder);
+    const svg =
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">` +
+      `<foreignObject width="100%" height="100%">` +
+      `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${W}px;min-height:${H}px;background:#ffffff">${inner}</div>` +
+      `</foreignObject></svg>`;
+    const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement("canvas");
+        c.width = W * SCALE;
+        c.height = H * SCALE;
+        const ctx = c.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.scale(SCALE, SCALE);
+        ctx.drawImage(img, 0, 0);
+        c.toBlob((blob) => {
+          if (!blob) { reject(new Error("blob")); return; }
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = `${String(rec.title || "요리").replace(/[\\/:*?"<>|]+/g, "_")}.jpg`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+          resolve();
+        }, "image/jpeg", 0.92);
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
+  } catch {
+    exportRecipePdf(rec); // fallback to print dialog
+  } finally {
+    if (btn && label) btn.textContent = label;
+  }
+}
+
 // A standalone, viewable HTML page for a recipe (uploaded to R2 / opened in cloud).
 function buildRecipeStandaloneHtml(rec) {
   return (
@@ -2347,7 +2406,7 @@ function renderRecipeViewer(id) {
           <div class="viewer-content rdoc" data-viewer-content><style>${RECIPE_DOC_CSS}</style>${recipeBody(rec)}</div>
         </div>
         <div class="viewer-actions">
-          <button class="pill viewer-pdf" data-recipe-pdf="${id}">📄 ${t("savePdf")}</button>
+          <button class="pill viewer-pdf" data-recipe-jpg="${id}">🖼️ ${t("saveJpg")}</button>
           <button class="ghost-pill viewer-share" data-recipe-share="${id}">↗ ${t("shareRecipe")}</button>
           <button class="ghost-pill viewer-save-jpg" data-recipe-jpg="${id}">⬇ ${t("saveJpg")}</button>
         </div>
@@ -2794,10 +2853,10 @@ function bindEvents() {
       window.open(`https://www.google.com/search?q=${q}`, "_blank", "noopener,noreferrer");
     });
   });
-  document.querySelectorAll("[data-recipe-pdf]").forEach((btn) => {
+  document.querySelectorAll("[data-recipe-jpg]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const rec = (state.savedRecipes || []).find((r) => r.id === btn.dataset.recipePdf);
-      if (rec) exportRecipePdf(rec);
+      const rec = (state.savedRecipes || []).find((r) => r.id === btn.dataset.recipeJpg);
+      if (rec) exportRecipeJpg(rec, btn);
     });
   });
   document.querySelectorAll("[data-recipe-share]").forEach((btn) => {
