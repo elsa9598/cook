@@ -1449,9 +1449,23 @@ button {
   transform-origin: 0 0;
   will-change: transform;
 }
-.viewer-pdf {
+.viewer-actions {
   flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
+  gap: 8px;
   margin: 10px 14px calc(10px + env(safe-area-inset-bottom));
+}
+.viewer-actions .pill,
+.viewer-actions .ghost-pill {
+  width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+  text-align: center;
+}
+.viewer-actions .ghost-pill:disabled {
+  opacity: 0.65;
+  cursor: wait;
 }
 
 .modal h2 {

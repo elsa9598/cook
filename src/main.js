@@ -116,6 +116,10 @@ const ko = {
   cookbookHint: "메뉴별로 모은 내 요리 — 누르면 펼쳐보고 PDF로 저장할 수 있어요.",
   openRecipe: "펼쳐보기",
   deleteRecipe: "삭제",
+  shareRecipe: "JPG 공유",
+  sharePreparing: "공유 준비 중…",
+  shareDone: "공유 준비 완료",
+  shareFallback: "JPG 파일을 저장했어요. 카톡에서 사진으로 첨부해 보내세요.",
   cloudRestore: "☁️ 클라우드에서 불러오기",
   cloudRestoreDone: "클라우드 동기화 완료",
   trashTitle: "🗑 최근 삭제 (되돌리기)",
@@ -299,6 +303,10 @@ const en = {
   cookbookHint: "Your recipes grouped by menu — tap to open and save as PDF.",
   openRecipe: "Open",
   deleteRecipe: "Delete",
+  shareRecipe: "Share JPG",
+  sharePreparing: "Preparing…",
+  shareDone: "Ready to share",
+  shareFallback: "JPG file saved. Attach it in KakaoTalk.",
   cloudRestore: "☁️ Load from cloud",
   cloudRestoreDone: "Synced from cloud",
   trashTitle: "🗑 Recently deleted (restore)",
@@ -1846,6 +1854,131 @@ function buildRecipeStandaloneHtml(rec) {
   );
 }
 
+function recipeShareFileName(rec) {
+  const safe = String(rec.title || "recipe")
+    .replace(/[^\w가-힣]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
+  return `${safe || "recipe"}.jpg`;
+}
+
+function recipeShareText(rec) {
+  const title = rec.title || "요리";
+  const ingredients = String(rec.ingredientsText || "").trim();
+  const steps = String(rec.stepsText || "").split(/\n+/).map((x) => x.trim()).filter(Boolean);
+  const summary = [
+    `요리잼뱅이 레시피: ${title}`,
+    ingredients ? `필수재료: ${ingredients}` : "",
+    steps.length ? `만드는 방법: ${steps.slice(0, 3).join(" / ")}${steps.length > 3 ? " …" : ""}` : "",
+  ].filter(Boolean);
+  return summary.join("\n");
+}
+
+async function waitForRecipeShareAssets(root) {
+  if (document.fonts?.ready) {
+    try { await document.fonts.ready; } catch {}
+  }
+  const images = Array.from(root.querySelectorAll("img"));
+  await Promise.all(images.map((img) => {
+    if (img.complete) return Promise.resolve();
+    return new Promise((resolve) => {
+      img.onload = resolve;
+      img.onerror = resolve;
+    });
+  }));
+}
+
+async function recipeToJpegBlob(rec) {
+  const width = 1080;
+  const probe = document.createElement("div");
+  probe.className = "rdoc";
+  probe.style.cssText = [
+    "position:fixed",
+    "left:-12000px",
+    "top:0",
+    `width:${width}px`,
+    "background:#fff",
+    "box-sizing:border-box",
+    "padding:44px",
+    "z-index:-1",
+  ].join(";");
+  probe.innerHTML = `<style>${RECIPE_DOC_CSS}.rdoc{max-width:none;margin:0}.rdoc h1{font-size:44px}.rdoc h2{font-size:20px}.rdoc .ingline,.rdoc .memo,.rdoc ol.steps li{font-size:24px}.rdoc ol.steps li{padding-left:46px}.rdoc ol.steps li::before{width:32px;height:32px;line-height:32px;font-size:18px}.rdoc .frame,.rdoc .img-ph,.rdoc .deco{width:76%}</style>${recipeBody(rec)}`;
+  document.body.appendChild(probe);
+  await waitForRecipeShareAssets(probe);
+
+  const height = Math.max(1, Math.ceil(probe.scrollHeight));
+  const body = probe.innerHTML;
+  probe.remove();
+
+  const xhtml =
+    `<div xmlns="http://www.w3.org/1999/xhtml" class="rdoc" style="width:${width}px;min-height:${height}px;background:#fff;box-sizing:border-box;padding:44px">` +
+    body +
+    `</div>`;
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
+    `<foreignObject width="100%" height="100%">${xhtml}</foreignObject></svg>`;
+  const svgUrl = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
+  try {
+    const img = new Image();
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+      img.src = svgUrl;
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+    if (!blob) throw new Error("jpg-render-failed");
+    return blob;
+  } finally {
+    URL.revokeObjectURL(svgUrl);
+  }
+}
+
+function downloadBlob(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function shareRecipe(rec) {
+  const title = rec.title || "요리잼뱅이 레시피";
+  const text = recipeShareText(rec);
+  const blob = await recipeToJpegBlob(rec);
+  const fileName = recipeShareFileName(rec);
+
+  try {
+    if (typeof File !== "undefined" && navigator.share && navigator.canShare) {
+      const file = new File([blob], fileName, { type: "image/jpeg" });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ title, text, files: [file] });
+        return true;
+      }
+    }
+    if (navigator.share) {
+      await navigator.share({ title, text });
+      return true;
+    }
+  } catch (err) {
+    // User cancellation should quietly fall back to copy only when nothing was shared.
+    if (err && err.name === "AbortError") return false;
+  }
+
+  downloadBlob(blob, fileName);
+  alert(t("shareFallback"));
+  return true;
+}
+
 // Upload a recipe to the R2 "cook" bucket under its mode folder; remember its URL.
 async function uploadRecipeToCloud(rec) {
   try {
@@ -1865,10 +1998,12 @@ async function uploadRecipeToCloud(rec) {
         saveState();
         render();
       }
+      return `${CLOUD_BASE}/?key=${encodeURIComponent(key)}`;
     }
   } catch {
     // Offline or worker unreachable — the recipe is still saved locally.
   }
+  return "";
 }
 
 // Save the day's diet log to R2 as a dated text file (diet/YYYY-MM-DD.txt).
@@ -2078,7 +2213,10 @@ function renderRecipeViewer(id) {
         <div class="viewer-stage" data-viewer-stage>
           <div class="viewer-content rdoc" data-viewer-content><style>${RECIPE_DOC_CSS}</style>${recipeBody(rec)}</div>
         </div>
-        <button class="pill viewer-pdf" data-recipe-pdf="${id}">📄 ${t("savePdf")}</button>
+        <div class="viewer-actions">
+          <button class="pill viewer-pdf" data-recipe-pdf="${id}">📄 ${t("savePdf")}</button>
+          <button class="ghost-pill viewer-share" data-recipe-share="${id}">↗ ${t("shareRecipe")}</button>
+        </div>
       </div>
     </div>
   `;
@@ -2502,6 +2640,26 @@ function bindEvents() {
     btn.addEventListener("click", () => {
       const rec = (state.savedRecipes || []).find((r) => r.id === btn.dataset.recipePdf);
       if (rec) exportRecipePdf(rec);
+    });
+  });
+  document.querySelectorAll("[data-recipe-share]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const rec = (state.savedRecipes || []).find((r) => r.id === btn.dataset.recipeShare);
+      if (!rec) return;
+      const oldText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = t("sharePreparing");
+      try {
+        const shared = await shareRecipe(rec);
+        btn.textContent = shared ? t("shareDone") : oldText;
+      } catch {
+        btn.textContent = oldText;
+      } finally {
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.textContent = oldText;
+        }, 900);
+      }
     });
   });
   setupViewerGestures();
