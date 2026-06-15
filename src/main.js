@@ -5,6 +5,7 @@ const STORAGE_KEY = "yorijambaengi-state-v2";
 const POPUP_KEY = "yorijambaengi-free-popup-date";
 // Cloudflare Worker that stores recipe HTML in the R2 "cook" bucket (by mode folder).
 const CLOUD_BASE = "https://cook-r2.3dleader0128.workers.dev";
+const DIET_CLOUD_PREFIX = "s2";
 
 const ko = {
   login: "Login",
@@ -106,6 +107,12 @@ const ko = {
   dietAddName: "음식",
   dietAddAmount: "분량",
   dietAdd: "추가",
+  dietSave: "식단 저장",
+  dietCloudLoad: "☁️ 선택 날짜 불러오기",
+  dietCloudSave: "☁️ 선택 날짜 저장",
+  dietCloudLoaded: "식단을 불러왔어요.",
+  dietCloudSaved: "식단을 클라우드에 저장했어요.",
+  dietCloudEmpty: "클라우드에 이 날짜 식단이 아직 없어요.",
   dietTotal: "오늘 합계",
   dietGood: "오늘 목표 영양을 채웠어요! 👍",
   dietLackPrefix: "부족한 영양소",
@@ -131,6 +138,7 @@ const ko = {
   purgeRecipe: "완전삭제",
   confirmDelete: "이 요리를 삭제할까요? (요리책 휴지통에서 되돌릴 수 있어요)",
   confirmPurge: "완전히 삭제할까요? 되돌릴 수 없어요.",
+  purgeCloudFail: "클라우드 삭제에 실패했어요. 인터넷 연결을 확인한 뒤 다시 시도해주세요.",
   email: "이메일",
   password: "비밀번호",
   confirm: "확인",
@@ -297,6 +305,12 @@ const en = {
   dietAddName: "Food",
   dietAddAmount: "Amount",
   dietAdd: "Add",
+  dietSave: "Save diet",
+  dietCloudLoad: "☁️ Load selected day",
+  dietCloudSave: "☁️ Save selected day",
+  dietCloudLoaded: "Diet loaded.",
+  dietCloudSaved: "Diet saved to cloud.",
+  dietCloudEmpty: "No cloud diet for this date yet.",
   dietTotal: "Today total",
   dietGood: "You met today's nutrition goals! 👍",
   dietLackPrefix: "Low on",
@@ -322,6 +336,7 @@ const en = {
   purgeRecipe: "Delete forever",
   confirmDelete: "Delete this recipe? (You can restore it from the cookbook trash.)",
   confirmPurge: "Delete forever? This cannot be undone.",
+  purgeCloudFail: "Cloud delete failed. Check your connection and try again.",
   email: "Email",
   password: "Password",
   confirm: "OK",
@@ -1308,6 +1323,7 @@ function renderCookbook() {
           <div class="recipe-row" data-open-recipe="${r.id}">
             <span class="recipe-row-emoji">${r.image ? "🖼️" : "📄"}</span>
             <span class="recipe-row-title">${escapeHtml(r.title)}</span>
+            <button class="ghost-pill recipe-jpg" data-row-jpg="${r.id}">⬇ JPG</button>
             ${r.cloudUrl ? `<a class="recipe-cloud" data-stop href="${r.cloudUrl}" target="_blank" rel="noopener" title="클라우드에서 열기">☁️</a>` : ""}
             <button class="recipe-del" data-del-recipe="${r.id}" title="${t("deleteRecipe")}">🗑</button>
           </div>`
@@ -1333,7 +1349,7 @@ function renderCookbook() {
               <span class="recipe-row-emoji">${r.image ? "🖼️" : "📄"}</span>
               <span class="recipe-row-title">${escapeHtml(r.title)}</span>
               <button class="ghost-pill recipe-restore" data-restore-recipe="${r.id}">↩ ${t("restoreRecipe")}</button>
-              <button class="recipe-del" data-purge-recipe="${r.id}" title="${t("purgeRecipe")}">✕</button>
+              <button class="ghost-pill recipe-purge" data-purge-recipe="${r.id}">${t("purgeRecipe")}</button>
             </div>`
             )
             .join("")}
@@ -1360,6 +1376,73 @@ function dietItems(dateStr) {
 }
 function dietTotalKcal(dateStr) {
   return dietItems(dateStr).reduce((s, e) => s + (+e.kcal || 0), 0);
+}
+
+function dietCloudKey(dateStr) {
+  return `${DIET_CLOUD_PREFIX}/${dateStr}.json`;
+}
+
+function dietLine(item) {
+  return [item.name, item.amount].map((x) => String(x || "").trim()).filter(Boolean).join(" ");
+}
+
+function parseDietText(text) {
+  const lines = String(text || "").split(/\n+/).map((s) => s.trim()).filter(Boolean);
+  if (lines.length > 1) return [...new Set(lines)];
+  return parseSpokenFoods(text);
+}
+
+function setDietItems(dateStr, names) {
+  state.diet[dateStr] = state.diet[dateStr] || {};
+  state.diet[dateStr].items = names.map((name, i) => ({ id: `${Date.now()}-${i}`, name, amount: "", kcal: "" }));
+  saveState();
+}
+
+function dietPayload(dateStr) {
+  return JSON.stringify({
+    app: "yorijambaengi",
+    type: "diet-day",
+    version: 2,
+    date: dateStr,
+    items: dietItems(dateStr).map((e) => ({ name: e.name || "", amount: e.amount || "", kcal: e.kcal || "" })),
+    savedAt: new Date().toISOString(),
+  }, null, 2);
+}
+
+function parseDietCloudText(text, fallbackDate) {
+  try {
+    const data = JSON.parse(text);
+    const items = Array.isArray(data.items) ? data.items : [];
+    return {
+      date: data.date || fallbackDate,
+      items: items
+        .map((e) => typeof e === "string" ? { name: e, amount: "", kcal: "" } : { name: e.name || "", amount: e.amount || "", kcal: e.kcal || "" })
+        .filter((e) => e.name),
+    };
+  } catch {
+    const lines = String(text || "").split(/\n+/).map((x) => x.trim()).filter(Boolean);
+    if (lines[0] === fallbackDate) lines.shift();
+    return { date: fallbackDate, items: lines.map((name) => ({ name, amount: "", kcal: "" })) };
+  }
+}
+
+async function loadDietDayFromCloud(dateStr) {
+  const keys = [dietCloudKey(dateStr), `diet/${dateStr}.txt`]; // second key migrates old saved text days.
+  for (const key of keys) {
+    try {
+      const res = await fetch(`${CLOUD_BASE}/?key=${encodeURIComponent(key)}`);
+      if (!res.ok) continue;
+      const parsed = parseDietCloudText(await res.text(), dateStr);
+      state.diet[dateStr] = state.diet[dateStr] || {};
+      state.diet[dateStr].items = parsed.items.map((e, i) => ({ id: `${Date.now()}-${i}`, ...e }));
+      saveState();
+      if (key !== dietCloudKey(dateStr)) uploadDietDay(dateStr);
+      return true;
+    } catch {
+      // Try the next key or report a miss to the caller.
+    }
+  }
+  return false;
 }
 
 // Pull just the foods out of a diary-like / dictated sentence so the Google
@@ -1424,6 +1507,7 @@ function renderDiet() {
   }
   const items = dietItems(dietDate);
   const totalK = dietTotalKcal(dietDate);
+  const editText = items.map(dietLine).join("\n");
   const list = items.length
     ? items
         .map(
@@ -1448,10 +1532,14 @@ function renderDiet() {
     </section>
     <section class="section card">
       <h2 class="section-title">📋 ${Number(m)}월 ${Number(dd)}일 (${dow[new Date(dietDate).getDay()]}) 먹은 것</h2>
+      <div class="diet-cloud-actions">
+        <button class="ghost-pill" data-diet-cloud-load>${t("dietCloudLoad")}</button>
+        <button class="ghost-pill" data-diet-cloud-save>${t("dietCloudSave")}</button>
+      </div>
       <div class="diet-list">${list}</div>
-      <form class="diet-add" data-diet-add>
-        <textarea name="name" class="diet-name-input" rows="3" placeholder="오늘 먹은 것을 한 줄에 하나씩 적어요&#10;예) 현미밥 1공기&#10;물 500ml&#10;아메리카노" required></textarea>
-        <button type="submit" class="pill" style="width:100%">＋ ${t("dietAdd")}</button>
+      <form class="diet-add" data-diet-save>
+        <textarea name="name" class="diet-name-input" rows="5" placeholder="오늘 먹은 것을 한 줄에 하나씩 적어요&#10;예) 현미밥 1공기&#10;물 500ml&#10;아메리카노">${escapeHtml(editText)}</textarea>
+        <button type="submit" class="pill" style="width:100%">✓ ${t("dietSave")}</button>
       </form>
       <button class="pill" style="width:100%;margin-top:10px" data-diet-search ${items.length ? "" : "disabled"}>🔎 ${t("dietAnalyze")}</button>
       <p class="cookbook-hint" style="margin-top:6px">${t("dietAnalyzeHint")}</p>
@@ -1836,6 +1924,16 @@ function saveRecipeRecord(rec) {
   saveState();
 }
 
+function recipeCloudKey(rec) {
+  if (rec?.cloudKey) return rec.cloudKey;
+  try {
+    const url = new URL(rec?.cloudUrl || "");
+    return url.searchParams.get("key") || "";
+  } catch {
+    return "";
+  }
+}
+
 // Open the OS print dialog (Save as PDF) for a recipe record.
 function exportRecipePdf(rec) {
   const html =
@@ -1896,7 +1994,19 @@ async function waitForRecipeShareAssets(root) {
   }));
 }
 
-async function recipeToJpegBlob(rec) {
+async function recipeJpegHtml(rec) {
+  if (rec?.fromCloud && !String(rec.stepsText || "").trim() && rec.cloudUrl) {
+    const res = await fetch(rec.cloudUrl);
+    if (res.ok) {
+      const doc = new DOMParser().parseFromString(await res.text(), "text/html");
+      const rdoc = doc.querySelector(".rdoc");
+      if (rdoc) return rdoc.innerHTML;
+    }
+  }
+  return recipeBody(rec);
+}
+
+async function recipeHtmlToJpegBlob(bodyHtml) {
   const width = 1080;
   const probe = document.createElement("div");
   probe.className = "rdoc";
@@ -1910,7 +2020,7 @@ async function recipeToJpegBlob(rec) {
     "padding:44px",
     "z-index:-1",
   ].join(";");
-  probe.innerHTML = `<style>${RECIPE_DOC_CSS}.rdoc{max-width:none;margin:0}.rdoc h1{font-size:44px}.rdoc h2{font-size:20px}.rdoc .ingline,.rdoc .memo,.rdoc ol.steps li{font-size:24px}.rdoc ol.steps li{padding-left:46px}.rdoc ol.steps li::before{width:32px;height:32px;line-height:32px;font-size:18px}.rdoc .frame,.rdoc .img-ph,.rdoc .deco{width:76%}</style>${recipeBody(rec)}`;
+  probe.innerHTML = `<style>${RECIPE_DOC_CSS}.rdoc{max-width:none;margin:0}.rdoc h1{font-size:44px}.rdoc h2{font-size:20px}.rdoc .ingline,.rdoc .memo,.rdoc ol.steps li{font-size:24px}.rdoc ol.steps li{padding-left:46px}.rdoc ol.steps li::before{width:32px;height:32px;line-height:32px;font-size:18px}.rdoc .frame,.rdoc .img-ph,.rdoc .deco{width:76%}</style>${bodyHtml}`;
   document.body.appendChild(probe);
   await waitForRecipeShareAssets(probe);
 
@@ -1946,6 +2056,10 @@ async function recipeToJpegBlob(rec) {
   } finally {
     URL.revokeObjectURL(svgUrl);
   }
+}
+
+async function recipeToJpegBlob(rec) {
+  return recipeHtmlToJpegBlob(await recipeJpegHtml(rec));
 }
 
 function downloadBlob(blob, fileName) {
@@ -2019,18 +2133,18 @@ async function uploadRecipeToCloud(rec) {
   return "";
 }
 
-// Save the day's diet log to R2 as a dated text file (diet/YYYY-MM-DD.txt).
+// Save the day's diet log to its own R2 folder so cookbook restores never mix it
+// with recipe HTML files.
 function uploadDietDay(dateStr) {
   try {
-    const items = dietItems(dateStr);
-    const body = `${dateStr}\n` + items.map((e) => e.name + (e.amount ? ` ${e.amount}` : "")).join("\n");
-    fetch(`${CLOUD_BASE}/?key=${encodeURIComponent(`diet/${dateStr}.txt`)}`, {
+    return fetch(`${CLOUD_BASE}/?key=${encodeURIComponent(dietCloudKey(dateStr))}`, {
       method: "PUT",
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-      body,
-    }).catch(() => {});
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+      body: dietPayload(dateStr),
+    }).then((res) => res.ok).catch(() => false);
   } catch {
     // offline — local save still holds it
+    return Promise.resolve(false);
   }
 }
 
@@ -2537,8 +2651,10 @@ function bindEvents() {
         state.savedRecipes = state.savedRecipes || [];
         for (const o of data.objects || []) {
           const key = o.key;
-          if (state.savedRecipes.some((r) => r.cloudKey === key)) continue;
           const mode = key.split("/")[0];
+          if (!key.toLowerCase().endsWith(".html")) continue;
+          if (!cookModes.some(([m]) => m === mode)) continue;
+          if (state.savedRecipes.some((r) => r.cloudKey === key)) continue;
           const file = key.split("/").pop() || "";
           const title = file.replace(/-\d+\.html$/i, "").replace(/\.html$/i, "").replace(/_/g, " ").trim() || "요리";
           state.savedRecipes.push({
@@ -2588,12 +2704,23 @@ function bindEvents() {
     });
   });
   document.querySelectorAll("[data-purge-recipe]").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
+    btn.addEventListener("click", async (e) => {
       e.stopPropagation();
       if (!window.confirm(t("confirmPurge"))) return;
       const id = btn.dataset.purgeRecipe;
       const rec = (state.trashRecipes || []).find((r) => r.id === id);
-      if (rec && rec.cloudKey) fetch(`${CLOUD_BASE}/?key=${encodeURIComponent(rec.cloudKey)}`, { method: "DELETE" }).catch(() => {});
+      const cloudKey = recipeCloudKey(rec);
+      btn.disabled = true;
+      if (cloudKey) {
+        try {
+          const res = await fetch(`${CLOUD_BASE}/?key=${encodeURIComponent(cloudKey)}`, { method: "DELETE" });
+          if (!res.ok) throw new Error("cloud-delete-failed");
+        } catch {
+          btn.disabled = false;
+          alert(t("purgeCloudFail"));
+          return;
+        }
+      }
       state.trashRecipes = (state.trashRecipes || []).filter((r) => r.id !== id);
       saveState();
       render();
@@ -2624,23 +2751,34 @@ function bindEvents() {
       render();
     });
   });
-  document.querySelectorAll("[data-diet-add]").forEach((form) => {
+  document.querySelectorAll("[data-diet-save]").forEach((form) => {
     form.addEventListener("submit", (e) => {
       e.preventDefault();
       const f = new FormData(form);
       const raw = String(f.get("name") || "");
-      // Extract just the foods from whatever was typed/dictated (diary sentences ok).
-      let foods = parseSpokenFoods(raw);
-      if (!foods.length) foods = raw.split(/\n+/).map((s) => s.trim()).filter(Boolean);
-      if (!foods.length) return;
-      dietItems(dietDate); // ensure migrated structure
-      state.diet[dietDate] = state.diet[dietDate] || {};
-      state.diet[dietDate].items = state.diet[dietDate].items || [];
-      foods.forEach((name, i) =>
-        state.diet[dietDate].items.push({ id: `${Date.now()}-${i}`, name, amount: "", kcal: "" })
-      );
-      saveState();
+      setDietItems(dietDate, parseDietText(raw));
       uploadDietDay(dietDate);
+      render();
+    });
+  });
+  document.querySelectorAll("[data-diet-cloud-load]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      btn.textContent = "…";
+      const ok = await loadDietDayFromCloud(dietDate);
+      alert(ok ? t("dietCloudLoaded") : t("dietCloudEmpty"));
+      render();
+    });
+  });
+  document.querySelectorAll("[data-diet-cloud-save]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const form = document.querySelector("[data-diet-save]");
+      const raw = form ? String(new FormData(form).get("name") || "") : "";
+      setDietItems(dietDate, parseDietText(raw));
+      btn.disabled = true;
+      btn.textContent = "…";
+      const ok = await uploadDietDay(dietDate);
+      alert(ok ? t("dietCloudSaved") : t("purgeCloudFail"));
       render();
     });
   });
@@ -2681,6 +2819,27 @@ function bindEvents() {
   document.querySelectorAll("[data-recipe-jpg]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const rec = (state.savedRecipes || []).find((r) => r.id === btn.dataset.recipeJpg);
+      if (!rec) return;
+      const oldText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = t("saveJpgPreparing");
+      try {
+        await saveRecipeJpg(rec);
+        btn.textContent = t("saveJpgDone");
+      } catch {
+        btn.textContent = oldText;
+      } finally {
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.textContent = oldText;
+        }, 900);
+      }
+    });
+  });
+  document.querySelectorAll("[data-row-jpg]").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const rec = (state.savedRecipes || []).find((r) => r.id === btn.dataset.rowJpg);
       if (!rec) return;
       const oldText = btn.textContent;
       btn.disabled = true;

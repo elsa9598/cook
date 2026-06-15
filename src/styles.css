@@ -1343,6 +1343,16 @@ button {
 }
 .recipe-row-emoji { font-size: 18px; }
 .recipe-row-title { flex: 1; color: var(--ink); font-weight: 600; }
+.recipe-jpg {
+  flex: 0 0 auto;
+  font-size: 12px;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+.recipe-jpg:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
 .recipe-del {
   background: none;
   border: none;
@@ -1352,6 +1362,16 @@ button {
 }
 .trash-row { border-left-color: var(--soft); opacity: 0.92; }
 .recipe-restore { font-size: 12px; padding: 4px 8px; }
+.recipe-purge {
+  border-color: rgba(226, 39, 24, 0.45);
+  color: var(--m-red);
+  font-size: 12px;
+  padding: 4px 8px;
+}
+.recipe-purge:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
 .recipe-cloud { text-decoration: none; font-size: 16px; padding: 0 4px; }
 
 /* Diet calendar */
@@ -1382,6 +1402,18 @@ button {
 .diet-lack.warn { background: rgba(226, 39, 24, 0.12); border: 1px solid var(--m-red); color: var(--ink); }
 .diet-lack.ok { background: rgba(15, 163, 54, 0.12); border: 1px solid #0fa336; color: var(--ink); }
 .diet-list { margin-bottom: 8px; }
+.diet-cloud-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 8px 0;
+}
+.diet-cloud-actions .ghost-pill {
+  min-width: 0;
+  font-size: 12px;
+  padding: 7px 8px;
+  white-space: nowrap;
+}
 .diet-name-input {
   width: 100%;
   box-sizing: border-box;
