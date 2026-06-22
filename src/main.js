@@ -5,7 +5,7 @@ const STORAGE_KEY = "yorijambaengi-state-v2";
 const POPUP_KEY = "yorijambaengi-free-popup-date";
 // Cloudflare Worker that stores recipe HTML in the R2 "cook" bucket (by mode folder).
 const CLOUD_BASE = "https://cook-r2.3dleader0128.workers.dev";
-const DIET_CLOUD_PREFIX = "daily-memo";
+const DIET_CLOUD_PREFIX = "daily";
 
 const ko = {
   login: "Login",
@@ -95,7 +95,7 @@ const ko = {
   bottomSauce: "양념",
   bottomRoom: "실온",
   bottomCookbook: "요리책",
-  bottomDiet: "메모",
+  bottomDiet: "데일리",
   ownerOnly: "주인 전용",
   ownerOnlyCopy: "이 메뉴는 잠겨 있어요.",
   ownerLoginTitle: "주인 로그인",
@@ -103,7 +103,7 @@ const ko = {
   ownerPw: "비밀번호",
   ownerLoginBtn: "로그인",
   ownerLoginFail: "아이디 또는 비밀번호가 달라요.",
-  dietTitle: "데일리 식단 메모",
+  dietTitle: "데일리 메모",
   dietAddName: "음식",
   dietAddAmount: "분량",
   dietAdd: "추가",
@@ -116,9 +116,9 @@ const ko = {
   dietTotal: "오늘 메모",
   dietGood: "오늘 메모가 저장돼 있어요.",
   dietLackPrefix: "비어 있음",
-  dietAnalyze: "구글로 식단 분석",
-  dietAnalyzeHint: "필요하면 저장한 식단 메모를 구글에서 칼로리·영양 균형으로 분석할 수 있어요.",
-  dietMemoPlaceholder: "오늘 식단을 자유롭게 메모하세요\n예) 아침: 현미밥, 계란후라이\n점심: 샐러드, 닭가슴살\n저녁: 김치찌개 조금\n메모: 물 1L, 커피 1잔",
+  dietAnalyze: "구글로 메모 검색",
+  dietAnalyzeHint: "필요하면 저장한 데일리 메모를 구글에서 이어서 확인할 수 있어요.",
+  dietMemoPlaceholder: "오늘 간단히 남길 메모를 적어두세요\n예) 장보기: 우유, 계란\n할 일: 병원 예약 확인\n아이디어: 주말 메뉴 정리\n기록: 산책 20분",
   dietHasMemo: "메모",
   dietNoMemo: "빈칸",
   cookbookTitle: "내 요리책",
@@ -299,7 +299,7 @@ const en = {
   bottomSauce: "Seasoning",
   bottomRoom: "Room",
   bottomCookbook: "Cookbook",
-  bottomDiet: "Memo",
+  bottomDiet: "Daily",
   ownerOnly: "Owner only",
   ownerOnlyCopy: "This menu is locked.",
   ownerLoginTitle: "Owner login",
@@ -307,7 +307,7 @@ const en = {
   ownerPw: "Password",
   ownerLoginBtn: "Log in",
   ownerLoginFail: "Wrong ID or password.",
-  dietTitle: "Daily meal memo",
+  dietTitle: "Daily memo",
   dietAddName: "Food",
   dietAddAmount: "Amount",
   dietAdd: "Add",
@@ -320,9 +320,9 @@ const en = {
   dietTotal: "Today's memo",
   dietGood: "Memo saved for today.",
   dietLackPrefix: "Empty",
-  dietAnalyze: "Analyze meal memo on Google",
-  dietAnalyzeHint: "Use the saved memo for a quick Google calorie and nutrition-balance analysis when needed.",
-  dietMemoPlaceholder: "Write today's meal memo freely\nExample) Breakfast: brown rice, fried egg\nLunch: salad, chicken breast\nDinner: a little kimchi stew\nNote: 1L water, 1 coffee",
+  dietAnalyze: "Search memo on Google",
+  dietAnalyzeHint: "Use the saved daily memo for a quick Google follow-up when needed.",
+  dietMemoPlaceholder: "Write a quick note for today\nExample) Shopping: milk, eggs\nTo do: confirm appointment\nIdea: weekend menu\nLog: 20-minute walk",
   dietHasMemo: "Memo",
   dietNoMemo: "Empty",
   cookbookTitle: "My cookbook",
@@ -1371,7 +1371,7 @@ function renderCookbook() {
   return `<section class="section">${cloudBtn}</section><p class="cookbook-hint">${t("cookbookHint")}</p>${body}${trashSection}`;
 }
 
-// Daily meal memo keyed by YYYY-MM-DD. Old food-list days are shown as memo text
+// Daily memo keyed by YYYY-MM-DD. Old food-list days are shown as memo text
 // so existing user data remains readable after the memo simplification.
 function dietItems(dateStr) {
   const day = state.diet[dateStr];
@@ -1434,7 +1434,7 @@ function dietPayload(dateStr) {
   const memo = dietMemo(dateStr);
   return JSON.stringify({
     app: "yorijambaengi",
-    type: "diet-memo-day",
+    type: "daily-memo-day",
     version: 3,
     date: dateStr,
     memo,
@@ -1465,7 +1465,7 @@ function parseDietCloudText(text, fallbackDate) {
 }
 
 async function loadDietDayFromCloud(dateStr) {
-  const keys = [dietCloudKey(dateStr), `s2/${dateStr}.json`, `diet/${dateStr}.txt`];
+  const keys = [dietCloudKey(dateStr), `daily-memo/${dateStr}.json`, `s2/${dateStr}.json`, `diet/${dateStr}.txt`];
   for (const key of keys) {
     try {
       const res = await fetch(`${CLOUD_BASE}/?key=${encodeURIComponent(key)}`);
@@ -2870,7 +2870,7 @@ function bindEvents() {
       const memo = dietMemo(dietDate);
       const foods = parseDietText(memo).join(", ");
       if (!foods) return;
-      const q = encodeURIComponent(`${memo}\n\n위 식단 메모를 기준으로 하루 총 칼로리와 영양성분(탄수화물·단백질·지방·식이섬유·비타민·무기질)을 계산하고 부족한 영양소를 알려줘`);
+      const q = encodeURIComponent(`${memo}\n\n위 데일리 메모와 관련해 필요한 정보나 다음 행동을 간단히 정리해줘`);
       window.open(`https://www.google.com/search?q=${q}`, "_blank", "noopener,noreferrer");
     });
   });
