@@ -1,4 +1,4 @@
-const CACHE_NAME = "yorijambaengi-pwa-v20";
+const CACHE_NAME = "yorijambaengi-pwa-v22";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -25,13 +25,16 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// HTML/manifest use network-first so a new deploy is picked up immediately
-// (avoids serving a stale index.html that points at old hashed assets).
-// Hashed build assets are content-addressed, so cache-first is safe for them.
+// HTML, manifest, and un-hashed source files use network-first so a new deploy is picked up immediately.
+// Hashed build assets under /assets remain cache-first because their filenames change per build.
 function isFreshFirst(request) {
   if (request.mode === "navigate") return true;
   const url = new URL(request.url);
-  return url.pathname.endsWith(".html") || url.pathname.endsWith(".webmanifest");
+  const path = url.pathname;
+  if (path.endsWith(".html") || path.endsWith(".webmanifest")) return true;
+  if (path.includes("/src/") || path.endsWith("/src/main.js") || path.endsWith("/src/styles.css")) return true;
+  if (!path.includes("/assets/") && (path.endsWith(".js") || path.endsWith(".css"))) return true;
+  return false;
 }
 
 self.addEventListener("fetch", (event) => {
@@ -69,3 +72,6 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+
+
+
