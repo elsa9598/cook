@@ -1473,6 +1473,10 @@ button {
   border-radius: var(--radius-btn);
   resize: vertical;
 }
+.diet-name-input.diet-memo-input {
+  font-size: 13px;
+  line-height: 1.5;
+}
 .diet-cat { border-top: 1px solid var(--hairline); padding-top: 8px; margin-top: 8px; }
 .diet-cat-title { font-weight: 700; color: var(--ink); margin-bottom: 6px; }
 .diet-item { display: flex; align-items: center; gap: 6px; padding: 4px 0; font-size: 13px; }
