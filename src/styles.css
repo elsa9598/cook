@@ -1406,6 +1406,41 @@ button {
 .cal-cell.today { border-color: var(--m-red); border-width: 2px; }
 .cal-cell.sel { background: var(--m-blue-dark); }
 .cal-cell.sel .cal-num, .cal-cell.sel .cal-kcal { color: #fff; }
+.cal-cell.has-memo {
+  border-color: var(--m-blue-dark);
+}
+.cal-cell.has-memo:not(.sel) {
+  background: linear-gradient(180deg, var(--surface-card), rgba(28, 105, 212, 0.16));
+}
+.cal-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--m-red);
+  box-shadow: 0 0 0 3px rgba(226, 39, 24, 0.16);
+}
+.cal-cell.sel .cal-dot {
+  background: #fff;
+  box-shadow: none;
+}
+.diet-calendar-card,
+.diet-memo-card {
+  border-left: 4px solid var(--m-blue-dark);
+}
+.diet-memo-badge {
+  flex: 0 0 auto;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-btn);
+  padding: 6px 10px;
+  color: var(--soft);
+  font-size: 12px;
+  font-weight: 800;
+}
+.diet-memo-input {
+  min-height: 250px;
+  font-size: 18px;
+  line-height: 1.55;
+}
 
 .diet-total { display: flex; flex-direction: column; gap: 2px; margin: 6px 0; font-size: 13px; color: var(--ink); }
 .diet-lack { padding: 8px 10px; border-radius: var(--radius-card); font-size: 13px; margin-bottom: 12px; }
@@ -1845,3 +1880,4 @@ button {
     box-shadow: none;
   }
 }
+

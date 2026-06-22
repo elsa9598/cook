@@ -95,7 +95,7 @@ const ko = {
   bottomSauce: "양념",
   bottomRoom: "실온",
   bottomCookbook: "요리책",
-  bottomDiet: "식단",
+  bottomDiet: "식단표",
   ownerOnly: "주인 전용",
   ownerOnlyCopy: "이 메뉴는 잠겨 있어요.",
   ownerLoginTitle: "주인 로그인",
@@ -103,21 +103,24 @@ const ko = {
   ownerPw: "비밀번호",
   ownerLoginBtn: "로그인",
   ownerLoginFail: "아이디 또는 비밀번호가 달라요.",
-  dietTitle: "나의 하루 식단표",
+  dietTitle: "데일리 식단 메모",
   dietAddName: "음식",
   dietAddAmount: "분량",
   dietAdd: "추가",
-  dietSave: "식단 저장",
+  dietSave: "메모 저장",
   dietCloudLoad: "☁️ 선택 날짜 불러오기",
   dietCloudSave: "☁️ 선택 날짜 저장",
-  dietCloudLoaded: "식단을 불러왔어요.",
-  dietCloudSaved: "식단을 클라우드에 저장했어요.",
-  dietCloudEmpty: "클라우드에 이 날짜 식단이 아직 없어요.",
-  dietTotal: "오늘 합계",
-  dietGood: "오늘 목표 영양을 채웠어요! 👍",
-  dietLackPrefix: "부족한 영양소",
-  dietAnalyze: "구글로 칼로리·영양 분석",
-  dietAnalyzeHint: "오늘 먹은 걸 다 추가한 뒤 누르면, 하루 식단 전체를 구글에서 칼로리·영양소·부족분으로 분석해줘요.",
+  dietCloudLoaded: "메모를 불러왔어요.",
+  dietCloudSaved: "메모를 클라우드에 저장했어요.",
+  dietCloudEmpty: "클라우드에 이 날짜 메모가 아직 없어요.",
+  dietTotal: "오늘 메모",
+  dietGood: "오늘 메모가 저장돼 있어요.",
+  dietLackPrefix: "비어 있음",
+  dietAnalyze: "구글로 식단 분석",
+  dietAnalyzeHint: "필요하면 저장한 식단 메모를 구글에서 칼로리·영양 균형으로 분석할 수 있어요.",
+  dietMemoPlaceholder: "오늘 식단을 자유롭게 메모하세요\n예) 아침: 현미밥, 계란후라이\n점심: 샐러드, 닭가슴살\n저녁: 김치찌개 조금\n메모: 물 1L, 커피 1잔",
+  dietHasMemo: "메모",
+  dietNoMemo: "빈칸",
   cookbookTitle: "내 요리책",
   cookbookEmpty: "아직 만든 요리가 없어요. 요리 종류를 골라 PDF를 만들면 여기에 모여요.",
   cookbookHint: "메뉴별로 모은 내 요리 — 누르면 펼쳐보고 PDF로 저장할 수 있어요.",
@@ -296,7 +299,7 @@ const en = {
   bottomSauce: "Seasoning",
   bottomRoom: "Room",
   bottomCookbook: "Cookbook",
-  bottomDiet: "Diet",
+  bottomDiet: "Meal Log",
   ownerOnly: "Owner only",
   ownerOnlyCopy: "This menu is locked.",
   ownerLoginTitle: "Owner login",
@@ -304,21 +307,24 @@ const en = {
   ownerPw: "Password",
   ownerLoginBtn: "Log in",
   ownerLoginFail: "Wrong ID or password.",
-  dietTitle: "My daily diet log",
+  dietTitle: "Daily meal memo",
   dietAddName: "Food",
   dietAddAmount: "Amount",
   dietAdd: "Add",
-  dietSave: "Save diet",
+  dietSave: "Save memo",
   dietCloudLoad: "☁️ Load selected day",
   dietCloudSave: "☁️ Save selected day",
-  dietCloudLoaded: "Diet loaded.",
-  dietCloudSaved: "Diet saved to cloud.",
-  dietCloudEmpty: "No cloud diet for this date yet.",
-  dietTotal: "Today total",
-  dietGood: "You met today's nutrition goals! 👍",
-  dietLackPrefix: "Low on",
-  dietAnalyze: "Analyze calories & nutrients on Google",
-  dietAnalyzeHint: "Add everything you ate today, then tap to analyze the whole day's calories, nutrients and shortfalls on Google.",
+  dietCloudLoaded: "Memo loaded.",
+  dietCloudSaved: "Memo saved to cloud.",
+  dietCloudEmpty: "No memo for this date yet.",
+  dietTotal: "Today's memo",
+  dietGood: "Memo saved for today.",
+  dietLackPrefix: "Empty",
+  dietAnalyze: "Analyze meal memo on Google",
+  dietAnalyzeHint: "Use the saved memo for a quick Google calorie and nutrition-balance analysis when needed.",
+  dietMemoPlaceholder: "Write today's meal memo freely\nExample) Breakfast: brown rice, fried egg\nLunch: salad, chicken breast\nDinner: a little kimchi stew\nNote: 1L water, 1 coffee",
+  dietHasMemo: "Memo",
+  dietNoMemo: "Empty",
   cookbookTitle: "My cookbook",
   cookbookEmpty: "No recipes yet. Pick a dish type and make a PDF — it shows up here.",
   cookbookHint: "Your recipes grouped by menu — tap to open and save as PDF.",
@@ -1365,7 +1371,8 @@ function renderCookbook() {
   return `<section class="section">${cloudBtn}</section><p class="cookbook-hint">${t("cookbookHint")}</p>${body}${trashSection}`;
 }
 
-// Unified daily food list (migrates the old per-meal structure if present).
+// Daily meal memo keyed by YYYY-MM-DD. Old food-list days are shown as memo text
+// so existing user data remains readable after the memo simplification.
 function dietItems(dateStr) {
   const day = state.diet[dateStr];
   if (!day) return [];
@@ -1379,6 +1386,18 @@ function dietItems(dateStr) {
   day.items = items;
   return items;
 }
+
+function dietMemo(dateStr) {
+  const day = state.diet[dateStr];
+  if (!day) return "";
+  if (typeof day.memo === "string") return day.memo;
+  return dietItems(dateStr).map(dietLine).join("\n");
+}
+
+function dietHasMemo(dateStr) {
+  return dietMemo(dateStr).trim().length > 0;
+}
+
 function dietTotalKcal(dateStr) {
   return dietItems(dateStr).reduce((s, e) => s + (+e.kcal || 0), 0);
 }
@@ -1400,15 +1419,25 @@ function parseDietText(text) {
 function setDietItems(dateStr, names) {
   state.diet[dateStr] = state.diet[dateStr] || {};
   state.diet[dateStr].items = names.map((name, i) => ({ id: `${Date.now()}-${i}`, name, amount: "", kcal: "" }));
+  state.diet[dateStr].memo = names.join("\n");
+  saveState();
+}
+
+function setDietMemo(dateStr, memo) {
+  state.diet[dateStr] = state.diet[dateStr] || {};
+  state.diet[dateStr].memo = String(memo || "").trim();
+  state.diet[dateStr].items = parseDietText(state.diet[dateStr].memo).map((name, i) => ({ id: `${Date.now()}-${i}`, name, amount: "", kcal: "" }));
   saveState();
 }
 
 function dietPayload(dateStr) {
+  const memo = dietMemo(dateStr);
   return JSON.stringify({
     app: "yorijambaengi",
-    type: "diet-day",
-    version: 2,
+    type: "diet-memo-day",
+    version: 3,
     date: dateStr,
+    memo,
     items: dietItems(dateStr).map((e) => ({ name: e.name || "", amount: e.amount || "", kcal: e.kcal || "" })),
     savedAt: new Date().toISOString(),
   }, null, 2);
@@ -1418,8 +1447,12 @@ function parseDietCloudText(text, fallbackDate) {
   try {
     const data = JSON.parse(text);
     const items = Array.isArray(data.items) ? data.items : [];
+    const memo = typeof data.memo === "string"
+      ? data.memo
+      : items.map((e) => typeof e === "string" ? e : [e.name, e.amount].filter(Boolean).join(" ")).filter(Boolean).join("\n");
     return {
       date: data.date || fallbackDate,
+      memo,
       items: items
         .map((e) => typeof e === "string" ? { name: e, amount: "", kcal: "" } : { name: e.name || "", amount: e.amount || "", kcal: e.kcal || "" })
         .filter((e) => e.name),
@@ -1427,18 +1460,19 @@ function parseDietCloudText(text, fallbackDate) {
   } catch {
     const lines = String(text || "").split(/\n+/).map((x) => x.trim()).filter(Boolean);
     if (lines[0] === fallbackDate) lines.shift();
-    return { date: fallbackDate, items: lines.map((name) => ({ name, amount: "", kcal: "" })) };
+    return { date: fallbackDate, memo: lines.join("\n"), items: lines.map((name) => ({ name, amount: "", kcal: "" })) };
   }
 }
 
 async function loadDietDayFromCloud(dateStr) {
-  const keys = [dietCloudKey(dateStr), `diet/${dateStr}.txt`]; // second key migrates old saved text days.
+  const keys = [dietCloudKey(dateStr), `diet/${dateStr}.txt`];
   for (const key of keys) {
     try {
       const res = await fetch(`${CLOUD_BASE}/?key=${encodeURIComponent(key)}`);
       if (!res.ok) continue;
       const parsed = parseDietCloudText(await res.text(), dateStr);
       state.diet[dateStr] = state.diet[dateStr] || {};
+      state.diet[dateStr].memo = parsed.memo || "";
       state.diet[dateStr].items = parsed.items.map((e, i) => ({ id: `${Date.now()}-${i}`, ...e }));
       saveState();
       if (key !== dietCloudKey(dateStr)) uploadDietDay(dateStr);
@@ -1468,8 +1502,8 @@ const DIET_STOPWORDS = new Set([
 function parseSpokenFoods(text) {
   const cleaned = String(text || "")
     .replace(/[.!?…~"'`()]/g, " ")
-    .replace(/(이랑|랑|하고|그리고나서|그리고|그리구|또)/g, " , ") // 연결어 → 구분자
-    .replace(/[\n,·、，]/g, " , "); // 줄바꿈·쉼표 → 구분자
+    .replace(/(이랑|랑|하고|그리고나서|그리고|그리구|또)/g, " , ")
+    .replace(/[\n,·、，]/g, " , ");
   const timeRe = /^(아침|점심|저녁|간식|야식|오늘|어제|내일|새벽|낮|밤|오전|오후)(에|엔|에는|때|쯤)?$/;
   const out = [];
   let run = [];
@@ -1480,7 +1514,6 @@ function parseSpokenFoods(text) {
   };
   for (let tk of cleaned.split(/\s+/)) {
     if (tk === ",") { flush(); continue; }
-    // 명백한 종결 조사만 제거 (사과·계란후라이 같은 음식 끝글자는 보존)
     tk = tk.replace(/(을|를|에서|으로|까지|부터|에게|한테)$/, "").trim();
     if (!tk) continue;
     if (DIET_STOPWORDS.has(tk) || /^\d+(\.\d+)?$/.test(tk) || timeRe.test(tk)) { flush(); continue; }
@@ -1501,32 +1534,23 @@ function renderDiet() {
   for (let i = 0; i < startDow; i++) cells += `<div class="cal-cell empty"></div>`;
   for (let day = 1; day <= daysInMonth; day++) {
     const ds = `${dietView.y}-${String(dietView.m + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    const n = dietItems(ds).length;
+    const hasMemo = dietHasMemo(ds);
     const cls = ["cal-cell"];
     if (ds === today) cls.push("today");
     if (ds === dietDate) cls.push("sel");
-    cells += `<button class="${cls.join(" ")}" data-diet-day="${ds}">
+    if (hasMemo) cls.push("has-memo");
+    cells += `<button class="${cls.join(" ")}" data-diet-day="${ds}" aria-label="${ds} ${hasMemo ? t("dietHasMemo") : t("dietNoMemo")}">
       <span class="cal-num">${day}</span>
-      ${n ? `<span class="cal-kcal">${n}개</span>` : ""}
+      ${hasMemo ? `<span class="cal-dot"></span>` : ""}
     </button>`;
   }
-  const items = dietItems(dietDate);
-  const totalK = dietTotalKcal(dietDate);
-  const editText = items.map(dietLine).join("\n");
-  const list = items.length
-    ? items
-        .map(
-          (e) => `<div class="diet-item">
-            <span class="diet-item-name">${escapeHtml(e.name)}</span>
-            <span class="diet-item-meta">${e.amount ? escapeHtml(String(e.amount)) : ""}${e.kcal ? ` · ${e.kcal}kcal` : ""}</span>
-            <button class="diet-del" data-diet-del="${e.id}" title="삭제">✕</button>
-          </div>`
-        )
-        .join("")
-    : `<p class="diet-empty">오늘 먹은 음식을 자유롭게 추가하세요 (물·간식·커피 포함).</p>`;
+  const memo = dietMemo(dietDate);
+  const foods = parseDietText(memo);
   const [, m, dd] = dietDate.split("-");
+  const weekday = dow[new Date(dietDate).getDay()];
+  const placeholder = t("dietMemoPlaceholder").replaceAll("\n", "&#10;");
   return `
-    <section class="section">
+    <section class="section card diet-calendar-card">
       <div class="cal-head">
         <button class="cal-nav" data-diet-month="-1">‹</button>
         <strong>${dietView.y}년 ${monthNames[dietView.m]}</strong>
@@ -1535,23 +1559,24 @@ function renderDiet() {
       <div class="cal-dow">${dow.map((w, i) => `<span class="${i === 0 ? "sun" : i === 6 ? "sat" : ""}">${w}</span>`).join("")}</div>
       <div class="cal-grid">${cells}</div>
     </section>
-    <section class="section card">
-      <h2 class="section-title">📋 ${Number(m)}월 ${Number(dd)}일 (${dow[new Date(dietDate).getDay()]}) 먹은 것</h2>
+    <section class="section card diet-memo-card">
+      <div class="section-head">
+        <h2 class="section-title">📋 ${Number(m)}월 ${Number(dd)}일 (${weekday})</h2>
+        <span class="diet-memo-badge">${memo.trim() ? t("dietHasMemo") : t("dietNoMemo")}</span>
+      </div>
+      <form class="diet-add" data-diet-save>
+        <textarea name="memo" class="diet-name-input diet-memo-input" rows="9" placeholder="${placeholder}">${escapeHtml(memo)}</textarea>
+        <button type="submit" class="pill" style="width:100%">✓ ${t("dietSave")}</button>
+      </form>
       <div class="diet-cloud-actions">
         <button class="ghost-pill" data-diet-cloud-load>${t("dietCloudLoad")}</button>
         <button class="ghost-pill" data-diet-cloud-save>${t("dietCloudSave")}</button>
       </div>
-      <div class="diet-list">${list}</div>
-      <form class="diet-add" data-diet-save>
-        <textarea name="name" class="diet-name-input" rows="5" placeholder="오늘 먹은 것을 한 줄에 하나씩 적어요&#10;예) 현미밥 1공기&#10;물 500ml&#10;아메리카노">${escapeHtml(editText)}</textarea>
-        <button type="submit" class="pill" style="width:100%">✓ ${t("dietSave")}</button>
-      </form>
-      <button class="pill" style="width:100%;margin-top:10px" data-diet-search ${items.length ? "" : "disabled"}>🔎 ${t("dietAnalyze")}</button>
+      <button class="pill" style="width:100%;margin-top:10px" data-diet-search ${foods.length ? "" : "disabled"}>🔎 ${t("dietAnalyze")}</button>
       <p class="cookbook-hint" style="margin-top:6px">${t("dietAnalyzeHint")}</p>
     </section>
   `;
 }
-
 function renderStorageShortcut(key, type) {
   const count = state.inventory[key].length;
   const name = state.lang === "ko" ? type.ko : type.en;
@@ -2813,8 +2838,8 @@ function bindEvents() {
     form.addEventListener("submit", (e) => {
       e.preventDefault();
       const f = new FormData(form);
-      const raw = String(f.get("name") || "");
-      setDietItems(dietDate, parseDietText(raw));
+      const raw = String(f.get("memo") || "");
+      setDietMemo(dietDate, raw);
       uploadDietDay(dietDate);
       render();
     });
@@ -2831,8 +2856,8 @@ function bindEvents() {
   document.querySelectorAll("[data-diet-cloud-save]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const form = document.querySelector("[data-diet-save]");
-      const raw = form ? String(new FormData(form).get("name") || "") : "";
-      setDietItems(dietDate, parseDietText(raw));
+      const raw = form ? String(new FormData(form).get("memo") || "") : "";
+      setDietMemo(dietDate, raw);
       btn.disabled = true;
       btn.textContent = "…";
       const ok = await uploadDietDay(dietDate);
@@ -2842,9 +2867,10 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-diet-search]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const foods = dietItems(dietDate).map((e) => e.name).filter(Boolean).join(", ");
+      const memo = dietMemo(dietDate);
+      const foods = parseDietText(memo).join(", ");
       if (!foods) return;
-      const q = encodeURIComponent(`${foods} — 하루 총 칼로리와 영양성분(탄수화물·단백질·지방·식이섬유·비타민·무기질) 계산하고 부족한 영양소 알려줘`);
+      const q = encodeURIComponent(`${memo}\n\n위 식단 메모를 기준으로 하루 총 칼로리와 영양성분(탄수화물·단백질·지방·식이섬유·비타민·무기질)을 계산하고 부족한 영양소를 알려줘`);
       window.open(`https://www.google.com/search?q=${q}`, "_blank", "noopener,noreferrer");
     });
   });
@@ -4622,3 +4648,6 @@ function applyLaunchShortcut() {
 
 maybeShowSignupPopup();
 render();
+
+
+
