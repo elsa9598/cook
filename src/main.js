@@ -113,6 +113,8 @@ const ko = {
   dietCloudLoaded: "메모를 불러왔어요.",
   dietCloudSaved: "메모를 클라우드에 저장했어요.",
   dietCloudEmpty: "클라우드에 이 날짜 메모가 아직 없어요.",
+  dietCloudRestoreDone: "데일리 메모를 클라우드에서 불러왔어요.",
+  dietCloudRestoreEmpty: "클라우드에 저장된 데일리 메모가 아직 없어요.",
   dietTotal: "오늘 메모",
   dietGood: "오늘 메모가 저장돼 있어요.",
   dietLackPrefix: "비어 있음",
@@ -317,6 +319,8 @@ const en = {
   dietCloudLoaded: "Memo loaded.",
   dietCloudSaved: "Memo saved to cloud.",
   dietCloudEmpty: "No memo for this date yet.",
+  dietCloudRestoreDone: "Daily memos loaded from cloud.",
+  dietCloudRestoreEmpty: "No daily memos saved in cloud yet.",
   dietTotal: "Today's memo",
   dietGood: "Memo saved for today.",
   dietLackPrefix: "Empty",
@@ -1484,6 +1488,46 @@ async function loadDietDayFromCloud(dateStr) {
   return false;
 }
 
+function dietDateFromCloudKey(key) {
+  const m = String(key || "").match(/(?:^|\/)(\d{4}-\d{2}-\d{2})\.(?:json|txt)$/i);
+  return m ? m[1] : "";
+}
+
+async function loadDietDaysFromCloud() {
+  const keys = new Map();
+  for (const prefix of [DIET_CLOUD_PREFIX, "daily-memo", "s2", "diet"]) {
+    try {
+      const res = await fetch(`${CLOUD_BASE}/?list=${encodeURIComponent(prefix)}`);
+      if (!res.ok) continue;
+      const data = await res.json();
+      for (const o of data.objects || []) {
+        const key = String(o.key || "");
+        const date = dietDateFromCloudKey(key);
+        if (date && !keys.has(date)) keys.set(date, key);
+      }
+    } catch {
+      // Try the remaining prefixes.
+    }
+  }
+  let loaded = 0;
+  for (const [date, key] of keys) {
+    try {
+      const res = await fetch(`${CLOUD_BASE}/?key=${encodeURIComponent(key)}`);
+      if (!res.ok) continue;
+      const parsed = parseDietCloudText(await res.text(), date);
+      state.diet[date] = state.diet[date] || {};
+      state.diet[date].memo = parsed.memo || "";
+      state.diet[date].items = parsed.items.map((e, i) => ({ id: `${Date.now()}-${i}`, ...e }));
+      if (key !== dietCloudKey(date)) uploadDietDay(date);
+      loaded++;
+    } catch {
+      // Skip damaged or unreachable entries and keep loading the rest.
+    }
+  }
+  if (loaded) saveState();
+  return loaded;
+}
+
 // Pull just the foods out of a diary-like / dictated sentence so the Google
 // analysis gets clean items (e.g. "오늘 아침에 현미밥이랑 계란후라이 먹고 물 마셨어"
 // → 현미밥, 계란후라이, 물).
@@ -1550,6 +1594,9 @@ function renderDiet() {
   const weekday = dow[new Date(dietDate).getDay()];
   const placeholder = t("dietMemoPlaceholder").replaceAll("\n", "&#10;");
   return `
+    <section class="section">
+      <button class="ghost-pill" style="width:100%;margin-bottom:10px" data-diet-cloud-restore>${t("cloudRestore")}</button>
+    </section>
     <section class="section card diet-calendar-card">
       <div class="cal-head">
         <button class="cal-nav" data-diet-month="-1">‹</button>
@@ -2862,6 +2909,15 @@ function bindEvents() {
       btn.textContent = "…";
       const ok = await uploadDietDay(dietDate);
       alert(ok ? t("dietCloudSaved") : t("purgeCloudFail"));
+      render();
+    });
+  });
+  document.querySelectorAll("[data-diet-cloud-restore]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      btn.textContent = "…";
+      const loaded = await loadDietDaysFromCloud();
+      alert(loaded ? t("dietCloudRestoreDone") : t("dietCloudRestoreEmpty"));
       render();
     });
   });
