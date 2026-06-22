@@ -5,7 +5,7 @@ const STORAGE_KEY = "yorijambaengi-state-v2";
 const POPUP_KEY = "yorijambaengi-free-popup-date";
 // Cloudflare Worker that stores recipe HTML in the R2 "cook" bucket (by mode folder).
 const CLOUD_BASE = "https://cook-r2.3dleader0128.workers.dev";
-const DIET_CLOUD_PREFIX = "s2";
+const DIET_CLOUD_PREFIX = "daily-memo";
 
 const ko = {
   login: "Login",
@@ -988,7 +988,7 @@ function defaultState() {
     notes: {}, // saved memos by ingredient name — kept even after deleting the item
     savedRecipes: [], // PDFs the user made, grouped by mode in the cookbook
     trashRecipes: [], // soft-deleted recipes, restorable from the cookbook
-    diet: {}, // daily food log keyed by YYYY-MM-DD
+    diet: {}, // daily memo log keyed by YYYY-MM-DD
     owner: false, // 주인 로그인 여부 (엘사)
   };
 }
@@ -1465,7 +1465,7 @@ function parseDietCloudText(text, fallbackDate) {
 }
 
 async function loadDietDayFromCloud(dateStr) {
-  const keys = [dietCloudKey(dateStr), `diet/${dateStr}.txt`];
+  const keys = [dietCloudKey(dateStr), `s2/${dateStr}.json`, `diet/${dateStr}.txt`];
   for (const key of keys) {
     try {
       const res = await fetch(`${CLOUD_BASE}/?key=${encodeURIComponent(key)}`);
@@ -2217,7 +2217,7 @@ async function uploadRecipeToCloud(rec) {
   return "";
 }
 
-// Save the day's diet log to its own R2 folder so cookbook restores never mix it
+// Save the day's daily memo to its own R2 folder so cookbook restores never mix it
 // with recipe HTML files.
 function uploadDietDay(dateStr) {
   try {
@@ -4648,6 +4648,7 @@ function applyLaunchShortcut() {
 
 maybeShowSignupPopup();
 render();
+
 
 
 
