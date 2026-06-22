@@ -1,4 +1,4 @@
-const CACHE_NAME = "yorijambaengi-pwa-v21";
+const CACHE_NAME = "yorijambaengi-pwa-v22";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -72,5 +72,6 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+
 
 

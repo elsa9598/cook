@@ -95,7 +95,7 @@ const ko = {
   bottomSauce: "양념",
   bottomRoom: "실온",
   bottomCookbook: "요리책",
-  bottomDiet: "식단표",
+  bottomDiet: "메모",
   ownerOnly: "주인 전용",
   ownerOnlyCopy: "이 메뉴는 잠겨 있어요.",
   ownerLoginTitle: "주인 로그인",
@@ -299,7 +299,7 @@ const en = {
   bottomSauce: "Seasoning",
   bottomRoom: "Room",
   bottomCookbook: "Cookbook",
-  bottomDiet: "Meal Log",
+  bottomDiet: "Memo",
   ownerOnly: "Owner only",
   ownerOnlyCopy: "This menu is locked.",
   ownerLoginTitle: "Owner login",
@@ -4648,6 +4648,7 @@ function applyLaunchShortcut() {
 
 maybeShowSignupPopup();
 render();
+
 
 
 
